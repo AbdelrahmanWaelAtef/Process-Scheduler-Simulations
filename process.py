@@ -35,3 +35,7 @@ class Process:
         self.duration = duration
         self.state = ProcessState.EMBRYO
         self.probability_io = probability_io
+        self.quantum = 0
+
+    def __gt__(self, other):
+        return self.name > other.name

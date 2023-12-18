@@ -2,7 +2,7 @@ from process import Process
 from stack import Stack
 import random
 
-def initializeProcessStack(num_processes: int = 50, max_arrival_time: int = 50, min_duration:int = 10, max_duration: int = 50, min_probability_io: float = 0.0, max_probability_io: float = 0.25):
+def initializeProcessStack(num_processes: int = 50, max_arrival_time: int = 50, min_duration:int = 10, max_duration: int = 50, min_probability_io: float = 0.0, max_probability_io: float = 0.25) -> Stack:
     """
     Initializes a stack of processes with random attributes.
 
@@ -29,7 +29,7 @@ def initializeProcessStack(num_processes: int = 50, max_arrival_time: int = 50, 
     stack.sort()
     return stack
 
-def getArrivedProcesses(stack: Stack, time_step:int):
+def getArrivedProcesses(stack: Stack, time_step:int) -> list:
     """
     Gets the processes the arrives at the given time step, and removes the processes from the stack.
 
@@ -41,11 +41,11 @@ def getArrivedProcesses(stack: Stack, time_step:int):
         List(Process): A list of the processes that arrives at that time step.
     """
     processes = []
-    while stack.peak().arrival_time == time_step:
+    while not stack.isEmpty() and stack.peak().arrival_time == time_step:
         processes.append(stack.pop())
     return processes
 
-def checkIO(process:Process):
+def checkIO(process:Process) -> bool:
     """
     Checks if the process will perform an I/O operation or not.
 
@@ -69,4 +69,4 @@ if __name__ == "__main__":
     for i in range(50):
         processes = getArrivedProcesses(stack, i)
         for process in processes:
-            print(f"{process.name}\t\t{process.arrival_time}\t\t\t{process.duration}\t\t\t{process.probability_io}\t\t{checkIO(process)}")
+            print(f"{process.name}\t\t{process.arrival_time}\t\t\t{process.duration}\t\t\t{process.probability_io}\t\t\t\t{checkIO(process)}")
