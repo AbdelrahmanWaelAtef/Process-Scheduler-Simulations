@@ -69,7 +69,7 @@ def plotGanttChart(data:dict) -> None:
     Plots a gantt chart for the CPU process using data coming from a scheduler output
 
     Example usage:
-        plot_gantt_chart({
+        plotGanttChart({
             'state': ['idle', 'idle', 'idle', 'idle', 'idle', 'P1', 'P1', 'P1', 'P2', 'P2', 'P1', 'P1', 'P1', 'P1', 'P1',
             'P1', 'P1', 'P1', 'P1', 'P1', 'P1', 'idle', 'idle', 'idle', 'idle', 'P3', 'P3', 'P4', 'P4', 'P5', 'P5', 'P3',
             'P3', 'P3'],
