@@ -49,7 +49,9 @@ class MLFQ:
         """
         for i in range(1, self.num_levels):
             while self.structure[i].peak() != None:
-                self.structure[0].push(self.structure[i].pop())
+                process = self.structure[i].pop()
+                process.quantum = self.quanta[0]
+                self.structure[0].push(process)
 
     def getProcess(self) -> (Process, int):
         """
@@ -133,24 +135,14 @@ class MLFQ:
 # Debug    
 if __name__ == "__main__":
     stack = Stack()
-    stack.push(Process(5, 14, 0))
-    stack.push(Process(8, 2, 0))
-    stack.push(Process(25, 5, 0))
-    stack.push(Process(27, 2, 0))
-    stack.push(Process(29, 2, 0))
+    stack.push(Process(3, 8, 0))
+    stack.push(Process(4, 7, 0))
+    stack.push(Process(8, 7, 0))
+    stack.push(Process(12, 1, 0))
     stack.sort()
-    mlfq = MLFQ(stack)
-    with open("logs.txt", "w") as file:
-        file.write("==================================\n")
-        file.write("Processes Information\n")
-        file.write("==================================\n")
-        file.write("Process Name\tProcess Arival Time\tProcess Duration\tProcess Probability I/O\n")
-        for i in range(len(mlfq.process_stack.items)):
-            process = mlfq.process_stack.items[i]
-            file.write(f"{process.name}\t\t\t\t{process.arrival_time}\t\t\t\t\t{process.duration}\t\t\t\t\t{process.probability_io}\n")
-        file.write("==================================\n")
-        file.write("Schedule Information\n")
-        file.write("==================================\n")
-        file.write("Time step\tCurrently running\tCurrent level\tFinished processes\tFinish times\n")
-        while(mlfq.step()):
-            file.write(f'{mlfq.time_step}\t\t\t{mlfq.info["CurrentRunningProcess"]}\t\t\t\t\t{mlfq.info["CurrentLevel"]}\t\t\t\t{mlfq.info["finished"]}\t\t\t\t\t{mlfq.info["finish_time"]}\n')
+    mlfq = MLFQ(stack, boost_time=1e3, quanta=[2, 4, 1e3])
+    df = {"state":[], "level":[]}
+    while(mlfq.step()):
+        df["state"].append(mlfq.info["CurrentRunningProcess"])
+        df["level"].append(mlfq.info["CurrentLevel"])
+    plot_gantt_chart(df)

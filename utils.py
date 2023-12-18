@@ -1,6 +1,9 @@
 from process import Process
 from stack import Stack
 import random
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 def initializeProcessStack(num_processes: int = 50, max_arrival_time: int = 50, min_duration:int = 10, max_duration: int = 50, min_probability_io: float = 0.0, max_probability_io: float = 0.25) -> Stack:
     """
@@ -60,6 +63,67 @@ def checkIO(process:Process) -> bool:
     if rand_num <= process.probability_io:
         io = True
     return io
+
+def plotGanttChart(data:dict) -> None:
+    """
+    Plots a gantt chart for the CPU process using data coming from a scheduler output
+
+    Example usage:
+        plot_gantt_chart({
+            'state': ['idle', 'idle', 'idle', 'idle', 'idle', 'P1', 'P1', 'P1', 'P2', 'P2', 'P1', 'P1', 'P1', 'P1', 'P1',
+            'P1', 'P1', 'P1', 'P1', 'P1', 'P1', 'idle', 'idle', 'idle', 'idle', 'P3', 'P3', 'P4', 'P4', 'P5', 'P5', 'P3',
+            'P3', 'P3'],
+            'level': [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 1, 1, 1]}
+
+    Arguments:
+        data (dict[str, list]): Dictionary holding the data for plotting the gantt chart.
+    
+    Returns:
+        None
+    """
+    # Convert the input data into a DataFrame for easier manipulation
+    df = pd.DataFrame(data)
+
+    # Create a new column for the start time of each state
+    df['start_time'] = df.index
+
+    # Create a list of unique states for color mapping
+    unique_states = df['state'].unique()
+    color_map = plt.cm.get_cmap('tab20', len(unique_states))
+    state_colors = {state: color_map(i) for i, state in enumerate(unique_states)}
+
+    # Determine the maximum level to flip the chart and adjust y-tick labels
+    max_level = df['level'].max()
+    y_ticks_labels = {level: str(max_level - level) for level in range(max_level + 1)}
+
+    # Start plotting
+    fig, ax = plt.subplots(figsize=(15, 8))
+
+    # Iterate over the DataFrame and plot each block
+    for index, row in df.iterrows():
+        start = row['start_time']
+        end = start + 1  # Each state lasts for 1 time step
+        level = max_level - row['level']  # Flip the level
+        state = row['state']
+
+        # Plot a bar for each state
+        ax.broken_barh([(start, end - start)], (level - 0.4, 0.8), facecolors=state_colors[state])
+
+    # Setting labels and title
+    ax.set_xlabel('Time Steps')
+    ax.set_ylabel('Level')
+    ax.set_title('Gantt Chart of CPU Scheduler States')
+    ax.set_yticks(range(max_level + 1))
+    ax.set_yticklabels([y_ticks_labels[y] for y in range(max_level + 1)])
+    ax.set_xticks(range(len(data['state']) + 1))
+    ax.grid(True)
+
+    # Add a legend for the states
+    legend_elements = [plt.Line2D([0], [0], color=state_colors[state], lw=4, label=state) for state in unique_states]
+    ax.legend(handles=legend_elements, loc='upper right')
+
+    # Show the plot
+    plt.show()
 
 # Debug
 if __name__ == "__main__":
