@@ -145,4 +145,4 @@ if __name__ == "__main__":
     while(mlfq.step()):
         df["state"].append(mlfq.info["CurrentRunningProcess"])
         df["level"].append(mlfq.info["CurrentLevel"])
-    plot_gantt_chart(df)
+    plotGanttChart(df)
