@@ -45,3 +45,14 @@ class Queue:
             bool: True if it is empty, False if not
         """
         return not bool(self.items)
+    
+    def changePeakProcess(self, process) -> None:
+        """
+        Changes the peak process with another process
+
+        Returns:
+            None
+        """
+        if self.items:
+            self.items[0] = process
+        return
