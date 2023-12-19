@@ -1,10 +1,10 @@
 import random
 
-
 class RoundRobin:
     def __init__(self, num_processes, quantum):
-        self.processes = [i + 1 for i in range(num_processes)]
+        self.processes = [i+1 for i in range(num_processes)]
         self.burst_time = [random.randint(1, 10) for _ in range(num_processes)]
+        self.io_burst_time = [random.randint(1, 5) for _ in range(num_processes)]
         self.quantum = quantum
         self.n = len(self.processes)
         self.rem_bt = [0] * self.n
@@ -27,6 +27,9 @@ class RoundRobin:
                         t = t + self.rem_bt[i]
                         self.wt[i] = t - self.burst_time[i]
                         self.rem_bt[i] = 0
+                    if self.rem_bt[i] > 0 and random.random() < 0.2:  # 20% chance of I/O request
+                        t += self.io_burst_time[i]
+                        self.rem_bt[i] -= self.io_burst_time[i]
             if done:
                 break
 
@@ -36,11 +39,9 @@ class RoundRobin:
         for i in range(self.n):
             total_wt = total_wt + self.wt[i]
             total_tat = total_tat + self.tat[i]
-            print(" " + str(i + 1) + "\t\t" + str(self.burst_time[i]) + "\t " + str(self.wt[i]) + "\t\t " + str(
-                self.tat[i]))
+            print(" " + str(i + 1) + "\t\t" + str(self.burst_time[i]) + "\t " + str(self.wt[i]) + "\t\t " + str(self.tat[i]))
         print("\nAverage waiting time = %.5f " % (total_wt / self.n))
         print("Average turn around time = %.5f " % (total_tat / self.n))
-
 
 num_processes = 3
 quantum = 2
