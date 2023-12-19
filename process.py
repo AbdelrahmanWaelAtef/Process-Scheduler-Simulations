@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class ProcessState(Enum):
     """
     Describes the state of the process in ENUM format
@@ -8,6 +9,7 @@ class ProcessState(Enum):
     STOPPED = 2
     READY = 3
     EMBRYO = 4
+
 
 class Process:
     """

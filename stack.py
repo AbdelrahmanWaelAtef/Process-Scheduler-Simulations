@@ -1,12 +1,8 @@
 from process import Process
 
-class Stack:
-    """
-    Implementation of a queue
 
-    Attributes:
-        items (list): The items of the stack
-    """
+class Stack:
+
     def __init__(self):
         self.items = []
 
@@ -26,6 +22,7 @@ class Stack:
         Returns:
             Process: The top most process in the stack
         """
+
         return self.items.pop() if self.items else None
 
     def peak(self) -> Process:
