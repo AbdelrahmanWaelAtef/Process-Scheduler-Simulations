@@ -29,7 +29,7 @@ class Process:
 
     pid_counter = 0
 
-    def __init__(self, arrival_time: int, duration: int, probability_io: float):
+    def __init__(self, arrival_time: int, duration: int, probability_io: float) -> None:
         Process.pid_counter += 1
         self.pid = Process.pid_counter
         self.name = f"P{self.pid}"

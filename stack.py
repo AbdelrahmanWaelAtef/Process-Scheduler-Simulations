@@ -2,8 +2,13 @@ from process import Process
 
 
 class Stack:
+    """
+    Implementation of a stack
 
-    def __init__(self):
+    Attributes:
+        items (list): The items of the stack
+    """
+    def __init__(self) -> None:
         self.items = []
 
     def push(self, item: Process) -> None:

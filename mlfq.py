@@ -21,7 +21,7 @@ class MLFQ:
         info (dict): Information about the current and finished processes, and other relevant data.
     """
     def __init__(self, process_stack: Stack, structure: list = [Queue(), Queue(), Queue()],
-                 quanta: list = [2, 5, 100000], boost_time: int = 10000) -> None:
+                 quanta: list = [2, 5, 100000], boost_time: int = 10000, pre_emptive: bool = True) -> None:
         """
         Initializes the MLFQ with the specified configuration.
 
@@ -38,6 +38,8 @@ class MLFQ:
         self.boost_time = boost_time
         self.time_step = 0
         self.prev_level = 0
+        self.pre_emptive = pre_emptive
+        self.previous_process = None
         self.info = {'CurrentRunningProcess': '', 'CurrentLevel': '', 'finished': [], 'finish_time': []}
     
     def boost(self) -> None:
@@ -60,10 +62,14 @@ class MLFQ:
         Returns:
             tuple: A tuple containing the process and its current level, or (None, None) if no process is available.
         """
-        for i in range(self.num_levels):
-            process = self.structure[i].peak()
-            if process != None:
-                return process, i
+        if self.pre_emptive or not self.previous_process:
+            for i in range(self.num_levels):
+                process = self.structure[i].peak()
+                if process != None:
+                    self.previous_process = process
+                    return process, i
+        elif self.previous_process:
+            return self.previous_process, self.prev_level
         return None, None
         
     def step(self) -> bool:
@@ -97,12 +103,14 @@ class MLFQ:
                     process.state = ProcessState.RUNNING
                     process.duration -= 1
                     process.quantum -= 1
+                    self.previous_process = process
                     self.info["CurrentLevel"] = level
                     self.prev_level = level
                     if process.duration:
                         if process.quantum:
                             self.structure[level].changePeakProcess(process)
                         else:
+                            self.previous_process = None
                             if level != self.num_levels - 1:
                                 self.structure[level].pop()
                                 level += 1
@@ -114,6 +122,7 @@ class MLFQ:
                         self.info['finished'].append(process.name)
                         self.info['finish_time'].append(self.time_step)
                         self.structure[level].pop()
+                        self.previous_process = None
                     for process, level in self.stopped:
                         self.structure[level].push(process)
             elif not self.process_stack.isEmpty():
@@ -140,9 +149,11 @@ if __name__ == "__main__":
     stack.push(Process(8, 7, 0))
     stack.push(Process(12, 1, 0))
     stack.sort()
-    mlfq = MLFQ(stack, boost_time=1e3, quanta=[2, 4, 1e3])
+    arrival_times = getArrivalTimes(stack)
+    mlfq = MLFQ(stack, boost_time=1e3, quanta=[2, 4, 1e3], pre_emptive=True)
     df = {"state":[], "level":[]}
     while(mlfq.step()):
         df["state"].append(mlfq.info["CurrentRunningProcess"])
         df["level"].append(mlfq.info["CurrentLevel"])
+    print(calculateMetrics(df["state"], arrival_times))
     plotGanttChart(df)

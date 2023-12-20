@@ -8,7 +8,7 @@ class MultiLevelPriorityQueue:
     Attributes:
         queues (PriorityQueue): The list of all priorit queues that corresponds to each level
     """
-    def __init__(self, levels: int, quanta: list):
+    def __init__(self, levels: int, quanta: list) -> None:
         self.queues = [PriorityQueue(quanta[i]) for i in range(levels)]
 
     def push(self, level: int, process: Process) -> None:

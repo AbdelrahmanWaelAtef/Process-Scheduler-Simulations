@@ -7,7 +7,7 @@ class Queue:
     Attributes:
         items (list): The items of the queue
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.items = []
 
     def push(self, item: Process) -> None:

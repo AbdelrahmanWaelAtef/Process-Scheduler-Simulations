@@ -73,7 +73,7 @@ def plotGanttChart(data:dict) -> None:
             'state': ['idle', 'idle', 'idle', 'idle', 'idle', 'P1', 'P1', 'P1', 'P2', 'P2', 'P1', 'P1', 'P1', 'P1', 'P1',
             'P1', 'P1', 'P1', 'P1', 'P1', 'P1', 'idle', 'idle', 'idle', 'idle', 'P3', 'P3', 'P4', 'P4', 'P5', 'P5', 'P3',
             'P3', 'P3'],
-            'level': [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 1, 1, 1]}
+            'level': [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 1, 1, 1]})
 
     Arguments:
         data (dict[str, list]): Dictionary holding the data for plotting the gantt chart.
@@ -125,6 +125,29 @@ def plotGanttChart(data:dict) -> None:
     # Show the plot
     plt.show()
 
+def getArrivalTimes(process_stack: Stack) -> dict:
+    arrival_times = dict()
+    for process in process_stack.items:
+        arrival_times[process.name] = process.arrival_time
+    return arrival_times
+
+def calculateMetrics(data, arrival_times) -> dict:
+    occurrences = {}
+    details = {}
+
+    for i, process in enumerate(data):
+        if process != 'idle':
+            if process not in occurrences:
+                occurrences[process] = [i, None]
+            occurrences[process][1] = i
+
+    for process, (first_idx, last_idx) in occurrences.items():
+        duration = last_idx - first_idx + 1
+        start_time = first_idx - arrival_times[process]
+        details[process] = [first_idx, last_idx + 1, duration, start_time]
+
+    return details
+        
 # Debug
 if __name__ == "__main__":
     stack = initializeProcessStack()
