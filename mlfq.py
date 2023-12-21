@@ -139,7 +139,14 @@ class MLFQ:
             else:
                 return False
         self.time_step += 1
-        return True   
+        return True
+
+    def run(self):
+        df = {"state":[], "level":[]}
+        while(self.step()):
+            df["state"].append(self.info["CurrentRunningProcess"])
+            df["level"].append(self.info["CurrentLevel"])
+        return df
     
 # Debug    
 if __name__ == "__main__":
@@ -149,11 +156,7 @@ if __name__ == "__main__":
     stack.push(Process(8, 7, 0))
     stack.push(Process(12, 1, 0))
     stack.sort()
-    arrival_times = getArrivalTimes(stack)
+    arrival_times = getProcessData(stack)
     mlfq = MLFQ(stack, boost_time=1e3, quanta=[2, 4, 1e3], pre_emptive=True)
-    df = {"state":[], "level":[]}
-    while(mlfq.step()):
-        df["state"].append(mlfq.info["CurrentRunningProcess"])
-        df["level"].append(mlfq.info["CurrentLevel"])
-    print(calculateMetrics(df["state"], arrival_times))
+    df = mlfq.run()
     plotGanttChart(df)

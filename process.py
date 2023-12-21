@@ -29,7 +29,7 @@ class Process:
 
     pid_counter = 0
 
-    def __init__(self, arrival_time: int, duration: int, probability_io: float) -> None:
+    def __init__(self, arrival_time: int, duration: int, probability_io: float, tickets: int = None, depends_on = None, pattern = None) -> None:
         Process.pid_counter += 1
         self.pid = Process.pid_counter
         self.name = f"P{self.pid}"
@@ -37,6 +37,8 @@ class Process:
         self.duration = duration
         self.state = ProcessState.EMBRYO
         self.probability_io = probability_io
+        self.tickets = tickets
+        self.depends_on = depends_on
         self.quantum = 0
 
     def __gt__(self, other):

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-def initializeProcessStack(num_processes: int = 50, max_arrival_time: int = 50, min_duration:int = 10, max_duration: int = 50, min_probability_io: float = 0.0, max_probability_io: float = 0.25) -> Stack:
+def initializeProcessStack(num_processes: int = 50, max_arrival_time: int = 50, min_duration:int = 10, max_duration: int = 50, min_probability_io: float = 0.0, max_probability_io: float = 0.25, pattern = None) -> Stack:
     """
     Initializes a stack of processes with random attributes.
 
@@ -27,8 +27,13 @@ def initializeProcessStack(num_processes: int = 50, max_arrival_time: int = 50, 
     for _ in range(num_processes):
         rand_arrival_time = random.randint(0, max_arrival_time + 1)
         rand_duration = random.randint(min_duration, max_duration + 1)
-        rand_probability_io = random.uniform(min_probability_io, max_probability_io)
-        stack.push(Process(rand_arrival_time, rand_duration, rand_probability_io))
+        if pattern:
+            rand_working_quantum = random.randint(1, 5)
+            rand_IO_quantum = random.randint(min_duration, max_duration + 1)
+            stack.push(rand_arrival_time, rand_duration, pattern=(rand_working_quantum, rand_IO_quantum))
+        else:       
+            rand_probability_io = random.uniform(min_probability_io, max_probability_io)
+            stack.push(Process(rand_arrival_time, rand_duration, rand_probability_io))
     stack.sort()
     return stack
 
@@ -125,13 +130,35 @@ def plotGanttChart(data:dict) -> None:
     # Show the plot
     plt.show()
 
-def getArrivalTimes(process_stack: Stack) -> dict:
-    arrival_times = dict()
-    for process in process_stack.items:
-        arrival_times[process.name] = process.arrival_time
-    return arrival_times
+def getProcessData(process_stack: Stack) -> dict:
+    """
+    Takes a stack of processes and returns a dictionary of all processes as keys
+    with their arrival time and duration in a list as values
 
-def calculateMetrics(data, arrival_times) -> dict:
+    Arguments:
+    process_stack (Stack): Stack of processes
+
+    returns:
+    dict(str, list)
+    """
+    details = dict()
+    for process in process_stack.items:
+        details[process.name] = [process.arrival_time, process.duration]
+    return details
+
+def calculateMetrics(data: dict, processes_details:dict) -> dict:
+    """
+    Takes run-time data of a scheduler and process details,
+    and calculates: response time, waiting time and turnaround time
+
+    Arguments:
+    data (dict): Dictionary containing all the run-time data of a scheduler
+    process_details (dict): Dictionary containing details about the processes themselves before running
+
+    Returns:
+    dict(str, list): A dictionary with processes as keys, and list of all calculated time scheduling metrics
+    for the process in a list as values
+    """
     occurrences = {}
     details = {}
 
@@ -142,9 +169,10 @@ def calculateMetrics(data, arrival_times) -> dict:
             occurrences[process][1] = i
 
     for process, (first_idx, last_idx) in occurrences.items():
-        duration = last_idx - first_idx + 1
-        start_time = first_idx - arrival_times[process]
-        details[process] = [first_idx, last_idx + 1, duration, start_time]
+        turnaround_time = last_idx - processes_details[process][0] + 1
+        response_time = first_idx - processes_details[process][0]
+        waiting_time = turnaround_time - processes_details[process][1]
+        details[process] = [processes_details[process][0], first_idx, last_idx + 1, processes_details[process][1], waiting_time, response_time, turnaround_time]
 
     return details
         
