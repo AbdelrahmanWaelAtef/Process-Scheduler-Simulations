@@ -36,7 +36,7 @@ class SchedulerApp(tk.Tk):
         self.processes_IO = None
 
         # Iterate over the frame classes and add them to the container
-        for F in (StartFrame, FCFSFrame, RoundRobinFrame, ProcessConfigFrame,
+        for F in (StartFrame, RoundRobinFrame, ProcessConfigFrame,
                   MLFQFrame, MLFQConfigFrame, LotteryFrame,
                   CustomProcessConfigFrame, CustomProcessCreationFrame,
                   CustomProcessCreationFrameTickets, FinalFrame):
@@ -59,7 +59,7 @@ class SchedulerApp(tk.Tk):
 
         # Special handling for EncodeDecodeSelection frame
         if cont == CustomProcessConfigFrame or cont == ProcessConfigFrame:
-            self.geometry("400x300")  # Set a custom size that fits the contents of this frame
+            self.geometry("400x230")  # Set a custom size that fits the contents of this frame
         elif cont == LotteryFrame or cont == RoundRobinFrame:
             self.geometry("400x250")
         elif cont == MLFQFrame:
@@ -86,8 +86,11 @@ class SchedulerApp(tk.Tk):
                                     quanta=self.configurations["quanta"],
                                     structure=self.configurations["structure"])
             self.process_data = getProcessData(self.processes)
+            print(self.process_data)
             self.details = self.scheduler.run()
             self.results = calculateMetrics(self.details["state"], self.process_data)
+            print(self.details["state"])
+            print(self.results)
 
 class StartFrame(tk.Frame):
     """Class for the StartFrame.
@@ -118,38 +121,24 @@ class StartFrame(tk.Frame):
     def goToFrame(self, controller) -> None:
             selection = self.algorithm.get()
             if selection == "FCFS":
-                controller.showFrame(FCFSFrame)
-            elif selection == "SJF" or selection == "SRTF":
+                controller.scheduler_name = "FCFS"
+                controller.showFrame(ProcessConfigFrame)
+            elif selection == "SJF":
+                controller.scheduler_name = "SJF"
+                controller.showFrame(ProcessConfigFrame)
+            elif selection == "SRTF":
+                controller.scheduler_name = "SRTF"
                 controller.showFrame(ProcessConfigFrame)
             elif selection == "Round-Robin":
+                controller.scheduler_name = "Round-Robin"
                 controller.showFrame(RoundRobinFrame)
             elif selection == "MLFQ":
                 controller.scheduler_name = "MLFQ"
                 controller.showFrame(MLFQFrame)
+                messagebox.showinfo("MLFQ", "If you do not want boosting, do not put a value in the boost time box")
             elif selection == "Lottery":
+                controller.scheduler_name = "Lottery"
                 controller.showFrame(LotteryFrame)
-
-
-class FCFSFrame(tk.Frame):
-    def __init__(self, parent, controller) -> None:
-        tk.Frame.__init__(self, parent)
-        self.controller = controller
-        label = tk.Label(self, text="Choose Pre-emption")
-        label.pack(pady=10, padx=10)
-
-        self.preemption = tk.StringVar()
-        self.preemption.set("Pre-emptive")  # default value
-        dropdown = ttk.Combobox(self, textvariable=self.preemption,
-                                values=["Pre-emptive", "Non-pre-emptive"])
-        dropdown.pack(pady=10, padx=10)
-
-        proceed_button = ttk.Button(self, text="Proceed",
-                                    command=self.proceed)
-        proceed_button.pack(pady=10, padx=10)
-
-    def proceed(self) -> None:
-        self.controller.showFrame(ProcessConfigFrame)
-
 
 class RoundRobinFrame(tk.Frame):
     def __init__(self, parent, controller) -> None:
@@ -183,22 +172,12 @@ class ProcessConfigFrame(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
         self.num_processes = 30
-        self.io_type = "Pattern"
 
         label = tk.Label(self, text="Number of processes")
         label.pack(pady=10, padx=10)
 
         self.num_processes_entry = tk.Entry(self)
         self.num_processes_entry.pack(pady=10, padx=10)
-
-        io_label = tk.Label(self, text="I/O type")
-        io_label.pack(pady=10, padx=10)
-
-        self.io_type_choice = tk.StringVar()
-        self.io_type_choice.set("Probability")  # default value
-        self.io_dropdown = ttk.Combobox(self, textvariable=self.io_type_choice,
-                                   values=["Probability", "Pattern"])
-        self.io_dropdown.pack(pady=10, padx=10)
 
         process_creation_label = tk.Label(self, text="Process Creation")
         process_creation_label.pack(pady=10, padx=10)
@@ -214,21 +193,18 @@ class ProcessConfigFrame(tk.Frame):
         self.proceed_button.pack(pady=10, padx=10)
 
     def proceed(self) -> None:
-        if self.io_dropdown.get() == "Probability":
-            self.controller.processes_IO ="Probability"
-        else:
-            self.controller.processes_IO = "Pattern"
-        if self.process_creation_dropdown.get() == "Custom":
-            self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
-            self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
-            self.controller.showFrame(CustomProcessCreationFrame)
-        else:
-            if self.io_dropdown.get() == "Probability":
-                self.controller.processes = initializeProcessStack(int(self.num_processes_entry.get()))
+        try:
+            if self.process_creation_dropdown.get() == "Custom":
+                self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
+                self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
+                self.controller.showFrame(CustomProcessCreationFrame)
             else:
-                self.controller.processes_IO = "Pattern"
                 self.controller.processes = initializeProcessStack(int(self.num_processes_entry.get()))
-            self.controller.showFrame(FinalFrame)
+                self.controller.runSchedule()
+                self.controller.frames[FinalFrame].displayDetails()
+                self.controller.showFrame(FinalFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
 
 class MLFQFrame(tk.Frame):
@@ -262,16 +238,19 @@ class MLFQFrame(tk.Frame):
         proceed_button.pack(pady=10, padx=10)
 
     def proceed(self) -> None:
-        if (self.boost_entry.get()):
-            boost_time = int(self.boost_entry.get())
-        else:
-            boost_time = 1000000
-        self.controller.configurations["boost_time"] = boost_time
-        self.controller.configurations["pre-emptive"] = self.dropdown.get() == "pre-emptive"
-        self.controller.frames[MLFQConfigFrame].num_levels = int(self.num_levels_entry.get())
-        self.controller.frames[MLFQConfigFrame].createLevelFrames()
-        self.controller.showFrame(MLFQConfigFrame)
-
+        try:
+            if (self.boost_entry.get()):
+                boost_time = int(self.boost_entry.get())
+            else:
+                boost_time = 1000000
+            self.controller.configurations["boost_time"] = boost_time
+            self.controller.configurations["pre-emptive"] = self.dropdown.get() == "pre-emptive"
+            self.controller.frames[MLFQConfigFrame].num_levels = int(self.num_levels_entry.get())
+            self.controller.frames[MLFQConfigFrame].createLevelFrames()
+            self.controller.showFrame(MLFQConfigFrame)
+            messagebox.showinfo("MLFQ", "If you choose FCFS, you do not need to put the quantum size")
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
 class LotteryFrame(tk.Frame):
     def __init__(self, parent, controller) -> None:
@@ -319,27 +298,28 @@ class MLFQConfigFrame(tk.Frame):
                                     command=self.proceed)
 
     def showNextLevel(self) -> None:
-        # Hide the current process frame
-        self.level_frames[self.currentLevelIndex][0].pack_forget()
-        self.next_level_button.pack_forget()
-
-        if self.level_frames[self.currentLevelIndex][1].get() == "Round-Robin":
-            self.levels.append(Queue())
-            self.quanta.append(int(self.level_frames[self.currentLevelIndex][2].get()))
-        else:
-            self.levels.append(Queue())
-            self.quanta.append(100000)
-
-        # Move to the next process
-        self.currentLevelIndex = (self.currentLevelIndex + 1)
-
-        # Show the next process frame
-        self.level_frames[self.currentLevelIndex][0].pack(fill="both", expand=True, padx=10, pady=5)
-        if self.currentLevelIndex == self.num_levels - 1:
+        try:
+            if self.level_frames[self.currentLevelIndex][1].get() == "Round-Robin":
+                self.levels.append(Queue())
+                self.quanta.append(int(self.level_frames[self.currentLevelIndex][2].get()))
+            else:
+                self.levels.append(Queue())
+                self.quanta.append(100000)
+            # Hide the current process frame
+            self.level_frames[self.currentLevelIndex][0].pack_forget()
             self.next_level_button.pack_forget()
-            self.proceed_button.pack(pady=10)
-        else:
-            self.next_level_button.pack(pady=10)
+            # Move to the next process
+            self.currentLevelIndex = (self.currentLevelIndex + 1)
+
+            # Show the next process frame
+            self.level_frames[self.currentLevelIndex][0].pack(fill="both", expand=True, padx=10, pady=5)
+            if self.currentLevelIndex == self.num_levels - 1:
+                self.next_level_button.pack_forget()
+                self.proceed_button.pack(pady=10)
+            else:
+                self.next_level_button.pack(pady=10)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
     def createLevelFrames(self) -> None:
         for level in range(self.num_levels):
@@ -368,15 +348,18 @@ class MLFQConfigFrame(tk.Frame):
         self.next_level_button.pack(pady=10)
 
     def proceed(self) -> None:
-        if self.level_frames[self.currentLevelIndex][1].get() == "Round-Robin":
-            self.levels.append(Queue())
-            self.quanta.append(int(self.level_frames[self.currentLevelIndex][2].get()))
-        else:
-            self.levels.append(Queue())
-            self.quanta.append(100000)
-        self.controller.configurations["quanta"] = self.quanta
-        self.controller.configurations["structure"] = self.levels
-        self.controller.showFrame(ProcessConfigFrame)
+        try:
+            if self.level_frames[self.currentLevelIndex][1].get() == "Round-Robin":
+                self.levels.append(Queue())
+                self.quanta.append(int(self.level_frames[self.currentLevelIndex][2].get()))
+            else:
+                self.levels.append(Queue())
+                self.quanta.append(100000)
+            self.controller.configurations["quanta"] = self.quanta
+            self.controller.configurations["structure"] = self.levels
+            self.controller.showFrame(ProcessConfigFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
 
 class CustomProcessConfigFrame(tk.Frame):
@@ -389,15 +372,6 @@ class CustomProcessConfigFrame(tk.Frame):
 
         self.num_processes_entry = tk.Entry(self)
         self.num_processes_entry.pack(pady=10, padx=10)
-
-        io_label = tk.Label(self, text="I/O type")
-        io_label.pack(pady=10, padx=10)
-
-        self.io_type = tk.StringVar()
-        self.io_type.set("Probability")  # default value
-        self.io_dropdown = ttk.Combobox(self, textvariable=self.io_type,
-                                   values=["Probability", "Pattern"])
-        self.io_dropdown.pack(pady=10, padx=10)
 
         self.process_creation_label = tk.Label(self, text="Process Creation")
         self.process_creation_label.pack(pady=10, padx=10)
@@ -413,12 +387,16 @@ class CustomProcessConfigFrame(tk.Frame):
         self.proceed_button.pack(pady=10, padx=10)
 
     def proceed(self) -> None:
-        if self.process_creation_dropdown.get() == "Custom":
-            self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
-            self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
-            self.controller.showFrame(CustomProcessCreationFrame)
-        else:
-            self.controller.showFrame(FinalFrame)
+        try:
+            if self.process_creation_dropdown.get() == "Custom":
+                self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
+                self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
+                self.controller.showFrame(CustomProcessCreationFrame)
+            else:
+                self.controller.processes = initializeProcessStack(int(self.num_processes_entry.get()), max_tickets=100, depends_on_probability=0.01)
+                self.controller.showFrame(FinalFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
 
 class CustomProcessCreationFrame(tk.Frame):
@@ -431,42 +409,6 @@ class CustomProcessCreationFrame(tk.Frame):
         self.next_process_button = ttk.Button(self, text="Next Process", command=self.showNextProcess)
         self.proceed_button = ttk.Button(self, text="Proceed",
                                     command=self.proceed)
-
-    def showNextProcess(self) -> None:
-        # Hide the current process frame
-        self.process_frames[self.current_process_index][0].pack_forget()
-        self.next_process_button.pack_forget()
-
-        if self.io_type == "Probability":
-            if self.process_frames[self.current_process_index][3].get():
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        probability_io=int(self.process_frames[self.current_process_index][3].get())))
-            else:
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        probability_io=0))
-        else:
-            if self.process_frames[self.current_process_index][3][0].get() and self.process_frames[self.current_process_index][3][1].get():
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        pattern=(int(self.process_frames[self.current_process_index][3][0].get()), 
-                                                                int(self.process_frames[self.current_process_index][3][1].get()))))
-            else:
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        probability_io=0))
-
-        # Move to the next process
-        self.current_process_index = (self.current_process_index + 1)
-
-        # Show the next process frame
-        self.process_frames[self.current_process_index][0].pack(fill="both", expand=True, padx=10, pady=5)
-        if self.current_process_index == self.num_processes - 1:
-            self.next_process_button.pack_forget()
-            self.proceed_button.pack(pady=10)
-        else:
-            self.next_process_button.pack(pady=10)
 
     def createProcessFrames(self) -> None:
         self.io_type = self.controller.processes_IO
@@ -484,65 +426,49 @@ class CustomProcessCreationFrame(tk.Frame):
             burst_entry = tk.Entry(process_frame)
             burst_entry.pack(side="left", padx=5)
 
-            io_type = self.addIoConfiguration(process_frame, self.io_type)
-
-            self.process_frames.append((process_frame, arrival_entry, burst_entry, io_type))
+            self.process_frames.append((process_frame, arrival_entry, burst_entry))
             process_frame.pack_forget()  # Initially hide the frame
 
             # Show only the first process frame initially
         self.process_frames[0][0].pack(fill="both", expand=True, padx=10, pady=5)
         self.next_process_button.pack(pady=10)
 
-    def addIoConfiguration(self, process_frame, io_type) -> None:
-        if io_type == "Probability":
-            prob_io_label = tk.Label(process_frame, text="Probability I/O")
-            prob_io_label.pack(side="left", padx=5)
-            prob_io_entry = tk.Entry(process_frame)
-            prob_io_entry.pack(side="left", padx=5)
-            return prob_io_entry
-        else:
-            pattern_io_label = tk.Label(process_frame, text="Pattern: For every")
-            pattern_io_label.pack(side="left", padx=5)
-            pattern_io_entry_1 = tk.Entry(process_frame)
-            pattern_io_entry_1.pack(side="left", padx=5)
-            pattern_io_label = tk.Label(process_frame, text=" quanta, perform an I/O for")
-            pattern_io_label.pack(side="left", padx=5)
-            pattern_io_entry_2 = tk.Entry(process_frame)
-            pattern_io_entry_2.pack(side="left", padx=5)
-            return [pattern_io_entry_1, pattern_io_entry_2]
+    def showNextProcess(self) -> None:
+        try:
+            # Hide the current process frame
+            self.process_frames[self.current_process_index][0].pack_forget()
+            self.next_process_button.pack_forget()
+            self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
+                                                    duration=int(self.process_frames[self.current_process_index][2].get())))
+            # Move to the next process
+            self.current_process_index = (self.current_process_index + 1)
+
+            # Show the next process frame
+            self.process_frames[self.current_process_index][0].pack(fill="both", expand=True, padx=10, pady=5)
+            if self.current_process_index == self.num_processes - 1:
+                self.next_process_button.pack_forget()
+                self.proceed_button.pack(pady=10)
+            else:
+                self.next_process_button.pack(pady=10)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
     def proceed(self) -> None:
-        if self.io_type == "Probability":
-            if self.process_frames[self.current_process_index][3].get():
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        probability_io=int(self.process_frames[self.current_process_index][3].get())))
-            else:
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        probability_io=0))
-        else:
-            if self.process_frames[self.current_process_index][3][0].get() and self.process_frames[self.current_process_index][3][1].get():
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        pattern=(int(self.process_frames[self.current_process_index][3][0].get()), 
-                                                                int(self.process_frames[self.current_process_index][3][1].get()))))
-            else:
-                self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
-                                                        duration=int(self.process_frames[self.current_process_index][2].get()),
-                                                        probability_io=0))
-        self.controller.processes.sort()
-        self.controller.runSchedule()
-        self.controller.frames[FinalFrame].displayDetails()
-        self.controller.showFrame(FinalFrame)
+        try:
+            self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
+                                                    duration=int(self.process_frames[self.current_process_index][2].get())))
+            self.controller.processes.sort()
+            self.controller.runSchedule()
+            self.controller.frames[FinalFrame].displayDetails()
+            self.controller.showFrame(FinalFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
         
-
 class CustomProcessCreationFrameTickets(tk.Frame):
     def __init__(self, parent, controller) -> None:  # Assuming defaults for demonstration
         tk.Frame.__init__(self, parent)
         self.controller = controller
         self.process_frames = []
-        self.io_type = self.controller.frames[CustomProcessConfigFrame].io_type
         self.num_processes = 0
         self.next_process_button = ttk.Button(self, text="Next Process", command=self.showNextProcess)
         self.proceed_button = ttk.Button(self, text="Proceed",
@@ -553,59 +479,70 @@ class CustomProcessCreationFrameTickets(tk.Frame):
             process_frame = tk.LabelFrame(self, text=f"Process #{process_num + 1}")
             process_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
+            arrival_label = tk.Label(process_frame, text="Arrival time:")
+            arrival_label.pack(side="left", padx=5)
+            arrival_entry = tk.Entry(process_frame)
+            arrival_entry.pack(side="left", padx=5)
+
+            burst_label = tk.Label(process_frame, text="Burst time:")
+            burst_label.pack(side="left", padx=5)
+            burst_entry = tk.Entry(process_frame)
+            burst_entry.pack(side="left", padx=5)
+
             tickets_label = tk.Label(process_frame, text="Number of tickets:")
             tickets_label.pack(side="left", padx=5)
             tickets_entry = tk.Entry(process_frame)
             tickets_entry.pack(side="left", padx=5)
 
-            io_entry = self.addIoConfiguration(process_frame, self.io_type)
+            label = tk.Label(self, text="Depends on")
+            label.pack(pady=10, padx=10)
 
-            self.process_frames.append((process_frame, tickets_label, tickets_entry, io_entry))
+            depends_on_entry = tk.Entry(process_frame)
+            depends_on_entry.pack(side="left", padx=5)
+
+            self.process_frames.append((process_frame, arrival_entry, burst_entry, tickets_entry, depends_on_entry))
             process_frame.pack_forget()  # Initially hide the frame
 
             # Show only the first process frame initially
         self.process_frames[0][0].pack(fill="both", expand=True, padx=10, pady=5)
         self.next_process_button.pack(pady=10)
 
-
     def showNextProcess(self) -> None:
-        # Hide the current process frame
-        self.process_frames[self.current_process_index][0].pack_forget()
-        self.next_process_button.pack_forget()
-
-        # Move to the next process
-        self.current_process_index = (self.current_process_index + 1)
-
-        # Show the next process frame
-        self.process_frames[self.current_process_index][0].pack(fill="both", expand=True, padx=10, pady=5)
-        if self.current_process_index == self.num_processes - 1:
+        try:
+            # Hide the current process frame
+            self.process_frames[self.current_process_index][0].pack_forget()
             self.next_process_button.pack_forget()
-            self.proceed_button.pack(pady=10)
-        else:
-            self.next_process_button.pack(pady=10)
 
-    def addIoConfiguration(self, process_frame, io_type) -> None:
-        if io_type == "Probability":
-            prob_io_label = tk.Label(process_frame, text="Probability I/O")
-            prob_io_label.pack(side="left", padx=5)
-            prob_io_entry = tk.Entry(process_frame)
-            prob_io_entry.pack(side="left", padx=5)
-            return prob_io_entry
-        else:
-            pattern_io_label = tk.Label(process_frame, text="Pattern: For every")
-            pattern_io_label.pack(side="left", padx=5)
-            pattern_io_entry = tk.Entry(process_frame)
-            pattern_io_entry.pack(side="left", padx=5)
-            pattern_io_label = tk.Label(process_frame, text=" quanta, perform an I/O for")
-            pattern_io_label.pack(side="left", padx=5)
-            pattern_io_entry = tk.Entry(process_frame)
-            pattern_io_entry.pack(side="left", padx=5)
-            # Add more pattern specific entries if required
-            return pattern_io_entry
+            self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
+                                            duration=int(self.process_frames[self.current_process_index][2].get()),
+                                            tickets=int(self.process_frames[self.current_process_index][3].get())),
+                                            depends_on=self.controller.processes.searchForProcess(self.process_frames[self.current_process_index][4].get()))
+
+            # Move to the next process
+            self.current_process_index = (self.current_process_index + 1)
+
+            # Show the next process frame
+            self.process_frames[self.current_process_index][0].pack(fill="both", expand=True, padx=10, pady=5)
+            if self.current_process_index == self.num_processes - 1:
+                self.next_process_button.pack_forget()
+                self.proceed_button.pack(pady=10)
+            else:
+                self.next_process_button.pack(pady=10)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
     def proceed(self) -> None:
-        self.controller.showFrame(FinalFrame)
-
+        try:
+            self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
+                                            duration=int(self.process_frames[self.current_process_index][2].get()),
+                                            tickets=int(self.process_frames[self.current_process_index][3].get())),
+                                            depends_on=self.controller.processes.searchForProcess(self.process_frames[self.current_process_index][4].get()))
+            self.controller.processes.sort()
+            self.controller.runSchedule()
+            self.controller.frames[FinalFrame].displayDetails()
+            self.controller.showFrame(FinalFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
 class FinalFrame(tk.Frame):
     def __init__(self, parent, controller) -> None:

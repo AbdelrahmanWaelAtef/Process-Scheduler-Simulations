@@ -1,5 +1,5 @@
 from process import Process
-
+import random
 
 class Stack:
     """
@@ -58,3 +58,30 @@ class Stack:
             bool: True if it is empty, False if not
         """
         return not bool(self.items)
+    
+    def getRandom(self, rand_value, depends_on_probability) -> Process:
+        """
+        Get a random process in the stack from a random value and probability
+
+        Returns:
+            Process/None: If there is a process, None if not
+        """
+        if rand_value < depends_on_probability:
+            if self.isEmpty():
+                return None
+            else:
+                return random.choice(self.items)
+        else:
+            return None
+        
+    def searchForProcess(self, name: str) -> Process:
+        """
+        Search for a process in the stack using a name
+
+        Returns:
+            Process/None: If found, None if not
+        """
+        for process in self.items:
+            if process.name == name:
+                return process
+        return None

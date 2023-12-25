@@ -81,7 +81,6 @@ class MLFQ:
             bool: True if the simulation should continue, False otherwise.
         """
         self.arrived_processes = getArrivedProcesses(self.process_stack, self.time_step)
-        self.stopped = []
         for process in self.arrived_processes:
             process.quantum = self.quanta[0]
             self.structure[0].push(process)
@@ -94,48 +93,34 @@ class MLFQ:
             process, level = self.getProcess()
 
             if process:
-                if checkIO(process):
-                    process.state = ProcessState.STOPPED
-                    self.stopped.append((process, level))
-                else:
-                    condition = False
-                    self.info["CurrentRunningProcess"] = process.name
-                    process.state = ProcessState.RUNNING
-                    process.duration -= 1
-                    process.quantum -= 1
-                    self.previous_process = process
-                    self.info["CurrentLevel"] = level
-                    self.prev_level = level
-                    if process.duration:
-                        if process.quantum:
-                            self.structure[level].changePeakProcess(process)
-                        else:
-                            self.previous_process = None
-                            if level != self.num_levels - 1:
-                                self.structure[level].pop()
-                                level += 1
-                                process.quantum = self.quanta[level]
-                                self.structure[level].push(process)
-                            else:
-                                self.structure[level].push(process)
+                condition = False
+                self.info["CurrentRunningProcess"] = process.name
+                process.state = ProcessState.RUNNING
+                process.decrementDuration()
+                self.previous_process = process
+                self.info["CurrentLevel"] = level
+                self.prev_level = level
+                if process.duration:
+                    if process.quantum:
+                        self.structure[level].changePeakProcess(process)
                     else:
-                        self.info['finished'].append(process.name)
-                        self.info['finish_time'].append(self.time_step)
-                        self.structure[level].pop()
                         self.previous_process = None
-                    for process, level in self.stopped:
-                        self.structure[level].push(process)
-            elif not self.process_stack.isEmpty():
-                if len(self.stopped):
-                    condition = False
-                    self.info["CurrentRunningProcess"] = "I/O"
-                    self.info["CurrentLevel"] = self.prev_level
-                    for process, level in self.stopped:
-                        self.structure[level].push(process)
+                        if level != self.num_levels - 1:
+                            self.structure[level].pop()
+                            level += 1
+                            process.quantum = self.quanta[level]
+                            self.structure[level].push(process)
+                        else:
+                            self.structure[level].push(process)
                 else:
-                    condition = False
-                    self.info["CurrentRunningProcess"] = "idle"
-                    self.info["CurrentLevel"] = self.prev_level
+                    self.info['finished'].append(process.name)
+                    self.info['finish_time'].append(self.time_step)
+                    self.structure[level].pop()
+                    self.previous_process = None
+            elif not self.process_stack.isEmpty():
+                condition = False
+                self.info["CurrentRunningProcess"] = "idle"
+                self.info["CurrentLevel"] = self.prev_level
             else:
                 return False
         self.time_step += 1
@@ -151,10 +136,10 @@ class MLFQ:
 # Debug    
 if __name__ == "__main__":
     stack = Stack()
-    stack.push(Process(3, 8, 0))
-    stack.push(Process(4, 7, 0))
-    stack.push(Process(8, 7, 0))
-    stack.push(Process(12, 1, 0))
+    stack.push(Process(0, 10))
+    stack.push(Process(4, 8))
+    stack.push(Process(8, 7))
+    stack.push(Process(12, 1))
     stack.sort()
     arrival_times = getProcessData(stack)
     mlfq = MLFQ(stack, boost_time=1e3, quanta=[2, 4, 1e3], pre_emptive=True)
