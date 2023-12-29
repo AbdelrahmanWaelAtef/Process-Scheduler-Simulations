@@ -9,7 +9,7 @@ class PriorityQueue:
         heap (list): The heap of the priority queue
         quantum (int): The time step of the priority queue
     """
-    def __init__(self, quantum:int) -> None:
+    def __init__(self, quantum:int = None) -> None:
         self.heap = []
         self.quantum = quantum
 

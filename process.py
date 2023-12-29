@@ -43,7 +43,7 @@ class Process:
     def decrementDuration(self):
         self.duration -= 1
         if self.quantum:
-            self.quantum -= 1
+            self.quantum -= 1     
 
     def __gt__(self, other):
         return self.name > other.name
