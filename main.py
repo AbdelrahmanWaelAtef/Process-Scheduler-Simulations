@@ -6,6 +6,7 @@ from priority_queue import PriorityQueue
 from utils import *
 from mlfq import MLFQ
 from sjf import SJF
+from fcfs import FCFS
 
 class SchedulerApp(tk.Tk):
     """ Main application class for the scheduler simulation.
@@ -91,6 +92,11 @@ class SchedulerApp(tk.Tk):
  
         if self.scheduler_name == "SJF":
                     self.scheduler = SJF(process_stack=self.processes)
+                    self.process_data = getProcessData(self.processes)
+                    self.details = self.scheduler.run()
+                    self.results = calculateMetrics(self.details["state"], self.process_data)
+        if self.scheduler_name == "FCFS":
+                    self.scheduler = FCFS(process_stack=self.processes)
                     self.process_data = getProcessData(self.processes)
                     self.details = self.scheduler.run()
                     self.results = calculateMetrics(self.details["state"], self.process_data)           
