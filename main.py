@@ -74,8 +74,7 @@ class SchedulerApp(tk.Tk):
         elif cont == CustomProcessCreationFrameTickets:
             self.geometry("820x200")
         elif cont == FinalFrame:
-            n = len(self.results.keys())
-            self.geometry(f"400x{150+190*n}")
+            self.geometry(f"400x50")
         else:
             self.geometry("400x150") # Resize window to fit the frame
 
@@ -552,23 +551,13 @@ class FinalFrame(tk.Frame):
     def __init__(self, parent, controller) -> None:
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        
-        metrics_label = tk.Label(self, text="Metrics for each process")
-        metrics_label.pack(pady=10)
 
     def displayGanttChart(self) -> None:
         plotGanttChart(self.controller.details)
 
     def displayDetails(self) -> None:
         for process in self.controller.results:
-            label = tk.Label(self, text=f"{process}").pack(pady=10)
-            label = tk.Label(self, text=f"Arrival time: {self.controller.results[process][0]}").pack()
-            label = tk.Label(self, text=f"First turn in: {self.controller.results[process][1]}").pack()
-            label = tk.Label(self, text=f"Finish time: {self.controller.results[process][2]}").pack()
-            label = tk.Label(self, text=f"Burst time: {self.controller.results[process][3]}").pack()
-            label = tk.Label(self, text=f"Waiting time: {self.controller.results[process][4]}").pack()
-            label = tk.Label(self, text=f"Response time: {self.controller.results[process][5]}").pack()
-            label = tk.Label(self, text=f"Turnaround time: {self.controller.results[process][6]}").pack()
+            messagebox.showinfo(process, f"Arrival time: {self.controller.results[process][0]}\nFirst turn in: {self.controller.results[process][1]}\nFinish time: {self.controller.results[process][2]}\nBurst time: {self.controller.results[process][3]}\nWaiting time: {self.controller.results[process][4]}\nResponse time: {self.controller.results[process][5]}\nTurnaround time: {self.controller.results[process][6]}")
         gantt_chart_button = ttk.Button(self, text="Display Gantt Chart",
                                         command=self.displayGanttChart)
         gantt_chart_button.pack(pady=10)
