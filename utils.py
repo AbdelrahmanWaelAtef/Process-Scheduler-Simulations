@@ -90,7 +90,10 @@ def plotGanttChart(data:dict) -> None:
     # Create a list of unique states for color mapping
     unique_states = df['state'].unique()
     unique_states = unique_states.tolist()
-    unique_states.remove('idle')
+    try:
+        unique_states.remove('idle')
+    except:
+        pass
     color_map = plt.cm.get_cmap('tab20', len(unique_states))
     state_colors = {state: color_map(i) for i, state in enumerate(unique_states)}
 
