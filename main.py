@@ -7,6 +7,7 @@ from utils import *
 from mlfq import MLFQ
 from sjf import SJF
 from fcfs import FCFS
+from strf import STRF
 
 class SchedulerApp(tk.Tk):
     """ Main application class for the scheduler simulation.
@@ -97,6 +98,11 @@ class SchedulerApp(tk.Tk):
                     self.results = calculateMetrics(self.details["state"], self.process_data)
         if self.scheduler_name == "FCFS":
                     self.scheduler = FCFS(process_stack=self.processes)
+                    self.process_data = getProcessData(self.processes)
+                    self.details = self.scheduler.run()
+                    self.results = calculateMetrics(self.details["state"], self.process_data)
+        if self.scheduler_name == "STRF":
+                    self.scheduler = STRF(process_stack=self.processes)
                     self.process_data = getProcessData(self.processes)
                     self.details = self.scheduler.run()
                     self.results = calculateMetrics(self.details["state"], self.process_data)           
