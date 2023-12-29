@@ -5,6 +5,7 @@ from queue_ import Queue
 from priority_queue import PriorityQueue
 from utils import *
 from mlfq import MLFQ
+from sjf import SJF
 
 class SchedulerApp(tk.Tk):
     """ Main application class for the scheduler simulation.
@@ -86,11 +87,14 @@ class SchedulerApp(tk.Tk):
                                     quanta=self.configurations["quanta"],
                                     structure=self.configurations["structure"])
             self.process_data = getProcessData(self.processes)
-            print(self.process_data)
             self.details = self.scheduler.run()
             self.results = calculateMetrics(self.details["state"], self.process_data)
-            print(self.details["state"])
-            print(self.results)
+ 
+        if self.scheduler_name == "SJF":
+                    self.scheduler = SJF(process_stack=self.processes)
+                    self.process_data = getProcessData(self.processes)
+                    self.details = self.scheduler.run()
+                    self.results = calculateMetrics(self.details["state"], self.process_data)           
 
 class StartFrame(tk.Frame):
     """Class for the StartFrame.
