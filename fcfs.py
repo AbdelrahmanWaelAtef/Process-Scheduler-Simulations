@@ -18,7 +18,6 @@ class FCFS:
             for process in arrived_processes:
                 self.queue.push(process)
             
-            # Your implementation of scheduler algorithm
             process = self.queue.peak()
             if process:
                 self.details["state"].append(process.name)

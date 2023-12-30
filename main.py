@@ -2,12 +2,12 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from queue_ import Queue
-from priority_queue import PriorityQueue
 from utils import *
 from mlfq import MLFQ
 from sjf import SJF
 from fcfs import FCFS
 from strf import STRF
+from rr import RoundRobin
 
 class SchedulerApp(tk.Tk):
     """ Main application class for the scheduler simulation.
@@ -63,14 +63,14 @@ class SchedulerApp(tk.Tk):
         # Special handling for EncodeDecodeSelection frame
         if cont == CustomProcessConfigFrame or cont == ProcessConfigFrame:
             self.geometry("400x230")  # Set a custom size that fits the contents of this frame
-        elif cont == LotteryFrame or cont == RoundRobinFrame:
+        elif cont == LotteryFrame:
             self.geometry("400x250")
+        elif cont == RoundRobinFrame:
+            self.geometry("400x150")
         elif cont == MLFQFrame:
             self.geometry("400x320")
         elif cont == MLFQConfigFrame:
             self.geometry("800x200")
-        elif cont == CustomProcessCreationFrame and self.processes_IO == "Pattern":
-            self.geometry("1000x200")
         elif cont == CustomProcessCreationFrame:
             self.geometry("700x200")
         elif cont == CustomProcessCreationFrameTickets:
@@ -105,7 +105,12 @@ class SchedulerApp(tk.Tk):
                     self.scheduler = STRF(process_stack=self.processes)
                     self.process_data = getProcessData(self.processes)
                     self.details = self.scheduler.run()
-                    self.results = calculateMetrics(self.details["state"], self.process_data)           
+                    self.results = calculateMetrics(self.details["state"], self.process_data)
+        if self.scheduler_name == "Round-Robin":
+            self.scheduler = RoundRobin(process_stack=self.processes, quantum=self.configurations["quantum"])
+            self.process_data = getProcessData(self.processes)
+            self.details = self.scheduler.run()
+            self.results = calculateMetrics(self.details["state"], self.process_data)                
 
 class StartFrame(tk.Frame):
     """Class for the StartFrame.
@@ -159,27 +164,23 @@ class RoundRobinFrame(tk.Frame):
     def __init__(self, parent, controller) -> None:
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        label = tk.Label(self, text="Choose Pre-emption")
-        label.pack(pady=10, padx=10)
 
-        self.preemption = tk.StringVar()
-        self.preemption.set("Pre-emptive")  # default value
-        dropdown = ttk.Combobox(self, textvariable=self.preemption,
-                                values=["Pre-emptive", "Non-pre-emptive"])
-        dropdown.pack(pady=10, padx=10)
-
-        quanta_label = tk.Label(self, text="Quanta size")
+        quanta_label = tk.Label(self, text="Quantum size")
         quanta_label.pack(pady=10, padx=10)
 
-        self.quanta_size = tk.Entry(self)
-        self.quanta_size.pack(pady=10, padx=10)
+        self.quantum = tk.Entry(self)
+        self.quantum.pack(pady=10, padx=10)
 
         proceed_button = ttk.Button(self, text="Proceed",
                                     command=self.proceed)
         proceed_button.pack(pady=10, padx=10)
 
     def proceed(self) -> None:
-        self.controller.showFrame(ProcessConfigFrame)
+        try:
+            self.controller.configurations["quantum"] = int(self.quantum.get())
+            self.controller.showFrame(ProcessConfigFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
 
 class ProcessConfigFrame(tk.Frame):
@@ -284,8 +285,8 @@ class LotteryFrame(tk.Frame):
         quanta_label = tk.Label(self, text="Quanta size")
         quanta_label.pack(pady=10, padx=10)
 
-        self.quanta_size = tk.Entry(self)
-        self.quanta_size.pack(pady=10, padx=10)
+        self.quantum = tk.Entry(self)
+        self.quantum.pack(pady=10, padx=10)
 
         proceed_button = ttk.Button(self, text="Proceed",
                                     command=self.proceed)

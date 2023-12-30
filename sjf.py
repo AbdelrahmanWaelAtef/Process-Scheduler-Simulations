@@ -13,7 +13,7 @@ class SJF():
     def run(self):
         self.time_step = 0
         details = {"state": [], "level": []}
-        while not (self.process_stack.isEmpty() and self.queue.isEmpty()):
+        while not (self.process_stack.isEmpty() and self.queue.isEmpty() and not self.waiting_processes):
         
             # Get arrived process
             arrived_processes = getArrivedProcesses(self.process_stack, self.time_step)
