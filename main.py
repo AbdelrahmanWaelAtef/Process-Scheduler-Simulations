@@ -542,7 +542,10 @@ class CustomProcessCreationFrame(tk.Frame):
 
             # Show only the first process frame initially
         self.process_frames[0][0].pack(fill="both", expand=True, padx=10, pady=5)
-        self.next_process_button.pack(pady=10)
+        if self.num_processes > 1:
+            self.next_process_button.pack(pady=10)
+        else:
+            self.proceed_button.pack(pady=10)
 
     def showNextProcess(self) -> None:
         try:
@@ -1090,17 +1093,20 @@ class RECustomProcessCreationFrame(tk.Frame):
 
             # Show only the first process frame initially
         self.process_frames[0][0].pack(fill="both", expand=True, padx=10, pady=5)
-        self.next_process_button.pack(pady=10)
+        if self.num_processes > 1:
+            self.next_process_button.pack(pady=10)
+        else:
+            self.proceed_button.pack(pady=10)
 
     def showNextProcess(self) -> None:
         try:
-            # Hide the current process frame
-            self.process_frames[self.current_process_index][0].pack_forget()
-            self.next_process_button.pack_forget()
             arrival_time =  int(self.process_frames[self.current_process_index][1].get())
             if arrival_time < self.controller.time_step:
                 messagebox.showerror("Incorrect Input", f"Arrival time should be more than or equal {self.controller.time_step}")
                 return
+            # Hide the current process frame
+            self.process_frames[self.current_process_index][0].pack_forget()
+            self.next_process_button.pack_forget()
             process = Process(arrival_time=arrival_time,
                                                     duration=int(self.process_frames[self.current_process_index][2].get()))
             self.controller.scheduler.process_stack.push(process)
