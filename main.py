@@ -10,6 +10,7 @@ from sjf import SJF
 from fcfs import FCFS
 from srtf import SRTF
 from rr import RoundRobin
+from lottery import Lottery
 from matplotlib.figure import Figure 
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,  
 NavigationToolbar2Tk) 
@@ -122,6 +123,8 @@ class SchedulerApp(tk.Tk):
             self.scheduler = SRTF(process_stack=self.processes)
         if self.scheduler_name == "Round-Robin":
             self.scheduler = RoundRobin(process_stack=self.processes, quantum=self.configurations["quantum"])
+        if self.scheduler_name == "Lottery":
+            self.scheduler = Lottery(process_stack=self.processes, quantum=self.configurations["quantum"])
 
     def calculateAllMetrics(self):
         self.results = calculateMetrics(self.details["state"], self.process_data)
@@ -167,7 +170,13 @@ class SchedulerApp(tk.Tk):
             for process in self.waiting_processes:
                 self.scheduler.queue.push(process)
             self.scheduler.details = self.prev_details
-
+        if self.scheduler_name == "Lottery":
+            self.scheduler = Lottery(process_stack=self.processes, quantum=self.configurations["quantum"])
+            while self.queue.peak():
+                self.scheduler.queue.push(self.queue.pop())
+            for process in self.waiting_processes:
+                self.scheduler.queue.push(process)
+            self.scheduler.details = self.prev_details
     def on_close(self):
         # You can perform any cleanup or confirmation here
         if messagebox.askokcancel("Quit", "Do you want to close the window?"):
@@ -182,7 +191,7 @@ class SchedulerApp(tk.Tk):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
         except OSError:
-            print("Error occurred while deleting files.")
+            print("Error occurred while deleting files.") # this error keeps showing up in console?
 
     def step(self):
         if self.scheduler.step():
@@ -387,7 +396,10 @@ class LotteryFrame(tk.Frame):
         proceed_button.pack(pady=10, padx=10)
 
     def proceed(self) -> None:
+        self.controller.configurations["quantum"] = int(self.quantum.get())
+        self.controller.configurations["pre-emptive"] = self.dropdown.get() == "pre-emptive"
         self.controller.showFrame(CustomProcessConfigFrame)
+        
 
 
 class MLFQConfigFrame(tk.Frame):
@@ -499,14 +511,16 @@ class CustomProcessConfigFrame(tk.Frame):
     def proceed(self) -> None:
         try:
             if self.process_creation_dropdown.get() == "Custom":
-                self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
-                self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
-                self.controller.showFrame(CustomProcessCreationFrame)
+
+                self.controller.frames[CustomProcessCreationFrameTickets].num_processes = int(self.num_processes_entry.get())
+                self.controller.frames[CustomProcessCreationFrameTickets].createProcessFrames()
+                self.controller.showFrame(CustomProcessCreationFrameTickets)
             else:
                 self.controller.processes = initializeProcessStack(int(self.num_processes_entry.get()), max_tickets=100, depends_on_probability=0.01)
+                self.controller.setupScheduler()
                 self.controller.process_data = getProcessData(self.controller.processes)
                 self.controller.frames[FinalFrame].displayFrame()
-            self.controller.showFrame(FinalFrame)
+                self.controller.showFrame(FinalFrame)
         except:
             messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
@@ -609,7 +623,7 @@ class CustomProcessCreationFrameTickets(tk.Frame):
             tickets_entry = tk.Entry(process_frame)
             tickets_entry.pack(side="left", padx=5)
 
-            label = tk.Label(self, text="Depends on")
+            label = tk.Label(process_frame, text="Depends on")
             label.pack(pady=10, padx=10)
 
             depends_on_entry = tk.Entry(process_frame)
@@ -703,6 +717,7 @@ class FinalFrame(tk.Frame):
             continue
         self.counter = len(self.controller.past_details) - 1
         saveGanttChart(self.controller.past_details[self.counter], self.ax, self.canvas)
+
 
     def metrics(self):
         if not self.controller.finished:

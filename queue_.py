@@ -56,3 +56,14 @@ class Queue:
         if self.items:
             self.items[0] = process
         return
+    # added this for lottery to remove a process not at the top.
+    def remove(self, process) -> None:
+        """
+        Removes a process from the queue
+
+        Returns:
+            None
+        """
+        if process in self.items:
+            self.items.remove(process)
+        return
