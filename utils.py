@@ -144,10 +144,9 @@ def plotGanttChart(data: dict) -> None:
 
     legend_elements = [plt.Line2D([0], [0], color=state_colors[state], lw=4, label=state) for state in unique_states]
     ax.legend(handles=legend_elements, loc='upper right')
+    plt.close()
 
-    plt.show()
-
-def saveGanttChart(data:dict) -> Image:
+def saveGanttChart(data:dict, ax, canvas):
     """
     Saves a gantt chart for the CPU process using data coming from a scheduler output
 
@@ -181,8 +180,7 @@ def saveGanttChart(data:dict) -> Image:
     max_level = df['level'].max()
     y_ticks_labels = {level: str(max_level - level) for level in range(max_level + 1)}
 
-    fig, ax = plt.subplots(figsize=(15, 8))
-
+    ax.clear()
     for index, row in df.iterrows():
         start = row['start_time']
         end = start + 1
@@ -206,14 +204,9 @@ def saveGanttChart(data:dict) -> Image:
 
     legend_elements = [plt.Line2D([0], [0], color=state_colors[state], lw=4, label=state) for state in unique_states]
     ax.legend(handles=legend_elements, loc='upper right')
-
-    # Show the plot
-    plot_buffer = BytesIO()
-    plt.savefig(plot_buffer, format='png')
-    plot_buffer.seek(0) 
-    image = Image.open(plot_buffer)
+    canvas.draw()
     plt.close()
-    return image
+    
 
 def getProcessData(process_stack: Stack) -> dict:
     """

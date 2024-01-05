@@ -10,6 +10,9 @@ from sjf import SJF
 from fcfs import FCFS
 from srtf import SRTF
 from rr import RoundRobin
+from matplotlib.figure import Figure 
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,  
+NavigationToolbar2Tk) 
 
 class SchedulerApp(tk.Tk):
     """ Main application class for the scheduler simulation.
@@ -43,7 +46,7 @@ class SchedulerApp(tk.Tk):
         self.time_step = -1
         self.process_data = None
         self.prev_details = {'state': [], 'level': []}
-        self.images = []
+        self.past_details = []
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -95,6 +98,7 @@ class SchedulerApp(tk.Tk):
             for process in self.processes.items:
                 self.total_duration += process.duration
             self.details = {"state":['idle']*self.total_duration, "level":[0]*self.total_duration}
+            self.past_details.append(self.details)
             if self.scheduler_name == "MLFQ":
                 self.scheduler = MLFQ(process_stack=self.processes,
                                         boost_time=self.configurations["boost_time"],
@@ -177,8 +181,7 @@ class SchedulerApp(tk.Tk):
                 self.details['state'][self.time_step] = self.scheduler.details['state'][self.time_step]
                 self.details['level'][self.time_step] = self.scheduler.details['level'][self.time_step]
             self.processes = self.scheduler.process_stack
-            image = saveGanttChart(self.details)
-            self.images.append(image)
+            self.past_details.append(self.details)
             return True
         return False
 
@@ -311,18 +314,19 @@ class ProcessConfigFrame(tk.Frame):
         self.proceed_button.pack(pady=10, padx=10)
 
     def proceed(self) -> None:
-        if self.process_creation_dropdown.get() == "Custom":
-            self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
-            self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
-            self.controller.showFrame(CustomProcessCreationFrame)
-        else:
-            self.controller.processes = initializeProcessStack(int(self.num_processes_entry.get()))
-            self.controller.setupScheduler()
-            self.controller.process_data = getProcessData(self.controller.processes)
-            self.controller.frames[FinalFrame].displayFrame()
-            self.controller.showFrame(FinalFrame)
-        # except:
-        #     messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+        try:
+            if self.process_creation_dropdown.get() == "Custom":
+                self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
+                self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
+                self.controller.showFrame(CustomProcessCreationFrame)
+            else:
+                self.controller.processes = initializeProcessStack(int(self.num_processes_entry.get()))
+                self.controller.setupScheduler()
+                self.controller.process_data = getProcessData(self.controller.processes)
+                self.controller.frames[FinalFrame].displayFrame()
+                self.controller.showFrame(FinalFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
 
 class MLFQFrame(tk.Frame):
@@ -670,29 +674,22 @@ class FinalFrame(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
         self.counter = 0
-        self.folder = "image_cache"
 
     def step(self):
         self.counter += 1
-        if self.counter == len(self.controller.images):
+        if self.counter == len(self.controller.past_details):
             if self.controller.step():
-                image = self.controller.images[self.counter]
+                saveGanttChart(self.controller.past_details[self.counter], self.ax, self.canvas)
             else:
                 self.counter -= 1
-                return
+                messagebox.showinfo('Simulation', 'Simulation has finished')
         else:
-            image = self.controller.images[self.counter]
-        image = ImageTk.PhotoImage(image)
-        self.photo_label.configure(image=image)
-        self.photo_label.image = image
+            saveGanttChart(self.controller.past_details[self.counter], self.ax, self.canvas)
     
     def back(self):
         if self.counter > 0:
             self.counter -= 1
-            image = self.controller.images[self.counter]
-            image = ImageTk.PhotoImage(image)
-            self.photo_label.configure(image=image)
-            self.photo_label.image = image
+            saveGanttChart(self.controller.past_details[self.counter], self.ax, self.canvas)
 
     def changeSchedule(self):
         if self.controller.scheduler_name == 'MLFQ':
@@ -708,19 +705,24 @@ class FinalFrame(tk.Frame):
         self.controller.showFrame(REStartFrame)
 
     def displayFrame(self):
-        image = saveGanttChart(self.controller.details)
-        self.controller.images.append(image)
+        # self.controller.past_details.append(image)
         self.frame_ratio = [8, 1]
-        self.photo = ImageTk.PhotoImage(image)
+        # self.photo = ImageTk.PhotoImage(image)
 
         # Create Frame 1 which will have a photo (using a label as a placeholder here)
         self.frame1 = ttk.Frame(self, borderwidth=2, relief="solid")
         self.frame1.pack(side="left", fill="both", expand=True)
 
         # Create a label as a placeholder for the photo in Frame 1
-        self.photo_label = ttk.Label(self.frame1, image=self.photo)
-        self.photo_label.pack(fill="both", expand=True)
-        self.photo_label.image = self.photo
+        # self.photo_label = ttk.Label(self.frame1, image=self.photo)
+        # self.photo_label.pack(fill="both", expand=True)
+        # self.photo_label.image = self.photo
+        self.fig, self.ax = plt.subplots(figsize=(15, 8))
+        self.canvas = FigureCanvasTkAgg(self.fig, 
+                                master = self.frame1)   
+        saveGanttChart(self.controller.past_details[self.counter], self.ax, self.canvas)
+        self.canvas.draw() 
+        self.canvas.get_tk_widget().pack() 
 
         # Create Frame 2 which will have some buttons
         self.frame2 = ttk.Frame(self, borderwidth=2, relief="solid")
