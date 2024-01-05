@@ -9,12 +9,11 @@ class SJF():
         self.process_stack = process_stack
         self.queue = PriorityQueue()
         self.waiting_processes = []
-
-    def run(self):
         self.time_step = 0
-        details = {"state": [], "level": []}
-        while not (self.process_stack.isEmpty() and self.queue.isEmpty() and not self.waiting_processes):
-        
+        self.details = {"state": [], "level": []}
+
+    def step(self):
+        if not (self.process_stack.isEmpty() and self.queue.isEmpty() and not self.waiting_processes):
             # Get arrived process
             arrived_processes = getArrivedProcesses(self.process_stack, self.time_step)
             for process in arrived_processes:
@@ -27,8 +26,8 @@ class SJF():
             
             process = self.queue.pop()
             if process:
-                details["state"].append(process.name)
-                details["level"].append(0)
+                self.details["state"].append(process.name)
+                self.details["level"].append(0)
                 process.decrementDuration()
                 if process.duration:
                     self.queue.push(process)
@@ -37,13 +36,19 @@ class SJF():
                         self.queue.push(process)
                     self.waiting_processes = []
             else:
-                details["state"].append("idle")
-                details["level"].append(0)
+                self.details["state"].append("idle")
+                self.details["level"].append(0)
                 for process in self.waiting_processes:
                     self.queue.push(process)
                 self.waiting_processes = []
             self.time_step += 1
-        return details
+            return True
+        return False
+
+    def run(self):
+        while(self.step()):
+            continue
+        return self.details
 
 
 if __name__ == "__main__":

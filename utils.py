@@ -1,9 +1,12 @@
 from process import Process
 from stack import Stack
+import matplotlib.colors as mcolors
 import random
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
 import pandas as pd
+from io import BytesIO
 
 def initializeProcessStack(num_processes: int = 8, max_arrival_time: int = 30, min_duration:int = 3, max_duration: int = 15, max_tickets: int = None, depends_on_probability: float = None) -> Stack:
     """
@@ -64,7 +67,26 @@ def getArrivedProcesses(stack: Stack, time_step:int) -> list:
         processes.append(stack.pop())
     return processes
 
-def plotGanttChart(data:dict) -> None:
+def generate_color(process_name: str) -> tuple:
+    """
+    Generates a dim and relaxing RGBA color code based on the number in the process name.
+
+    Arguments:
+    process_name (str): Name of the process (e.g., 'P1', 'P2').
+
+    Returns:
+    tuple: RGBA color.
+    """
+    if process_name.startswith('P'):
+        number = int(process_name[1:])  # Extract number from process name
+        hue = number / 10.0 % 1  # Ensure hue is between 0 and 1
+        saturation = 0.5  # Reduced saturation for a more muted color
+        value = 0.7  # Reduced brightness for a dimmer color
+        rgb_color = mcolors.hsv_to_rgb([hue, saturation, value])
+        return rgb_color  # Returns a RGB color, Matplotlib automatically considers alpha as 1
+    return '#808080'  # Default color for non-process states
+
+def plotGanttChart(data: dict) -> None:
     """
     Plots a gantt chart for the CPU process using data coming from a scheduler output
 
@@ -81,43 +103,35 @@ def plotGanttChart(data:dict) -> None:
     Returns:
         None
     """
-    # Convert the input data into a DataFrame for easier manipulation
     df = pd.DataFrame(data)
-
-    # Create a new column for the start time of each state
     df['start_time'] = df.index
 
-    # Create a list of unique states for color mapping
     unique_states = df['state'].unique()
     unique_states = unique_states.tolist()
     try:
         unique_states.remove('idle')
-    except:
+    except ValueError:
         pass
-    color_map = plt.cm.get_cmap('tab20', len(unique_states))
-    state_colors = {state: color_map(i) for i, state in enumerate(unique_states)}
 
-    # Determine the maximum level to flip the chart and adjust y-tick labels
+    # Use the generate_color function to create color mapping
+    state_colors = {state: generate_color(state) for state in unique_states}
+
     max_level = df['level'].max()
     y_ticks_labels = {level: str(max_level - level) for level in range(max_level + 1)}
 
-    # Start plotting
     fig, ax = plt.subplots(figsize=(15, 8))
 
-    # Iterate over the DataFrame and plot each block
     for index, row in df.iterrows():
         start = row['start_time']
-        end = start + 1  # Each state lasts for 1 time step
-        level = max_level - row['level']  # Flip the level
+        end = start + 1
+        level = max_level - row['level']
         state = row['state']
 
         if state == 'idle':
             continue
 
-        # Plot a bar for each state
         ax.broken_barh([(start, end - start)], (level - 0.4, 0.8), facecolors=state_colors[state])
 
-    # Setting labels and title
     ax.set_xlabel('Time Steps')
     ax.set_ylabel('Level')
     ax.set_title('Gantt Chart of CPU Scheduler States')
@@ -128,12 +142,78 @@ def plotGanttChart(data:dict) -> None:
     ax.set_xticklabels(tick_labels, rotation=45)
     ax.grid(True)
 
-    # Add a legend for the states
+    legend_elements = [plt.Line2D([0], [0], color=state_colors[state], lw=4, label=state) for state in unique_states]
+    ax.legend(handles=legend_elements, loc='upper right')
+
+    plt.show()
+
+def saveGanttChart(data:dict) -> Image:
+    """
+    Saves a gantt chart for the CPU process using data coming from a scheduler output
+
+    Arguments:
+    data (dict[str, list]): Dictionary holding the data for plotting the gantt chart.
+
+    Example usage:
+    >>> saveGanttChart({
+            'state': ['idle', 'idle', 'idle', 'idle', 'idle', 'P1', 'P1', 'P1', 'P2', 'P2', 'P1', 'P1', 'P1', 'P1', 'P1',
+            'P1', 'P1', 'P1', 'P1', 'P1', 'P1', 'idle', 'idle', 'idle', 'idle', 'P3', 'P3', 'P4', 'P4', 'P5', 'P5', 'P3',
+            'P3', 'P3'],
+            'level': [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 1, 1, 1]})
+    
+    Returns:
+        PIL.Image
+    """
+    # Convert the input data into a DataFrame for easier manipulation
+    df = pd.DataFrame(data)
+    df['start_time'] = df.index
+
+    unique_states = df['state'].unique()
+    unique_states = unique_states.tolist()
+    try:
+        unique_states.remove('idle')
+    except ValueError:
+        pass
+
+    # Use the generate_color function to create color mapping
+    state_colors = {state: generate_color(state) for state in unique_states}
+
+    max_level = df['level'].max()
+    y_ticks_labels = {level: str(max_level - level) for level in range(max_level + 1)}
+
+    fig, ax = plt.subplots(figsize=(15, 8))
+
+    for index, row in df.iterrows():
+        start = row['start_time']
+        end = start + 1
+        level = max_level - row['level']
+        state = row['state']
+
+        if state == 'idle':
+            continue
+
+        ax.broken_barh([(start, end - start)], (level - 0.4, 0.8), facecolors=state_colors[state])
+
+    ax.set_xlabel('Time Steps')
+    ax.set_ylabel('Level')
+    ax.set_title('Gantt Chart of CPU Scheduler States')
+    ax.set_yticks(range(max_level + 1))
+    ax.set_yticklabels([y_ticks_labels[y] for y in range(max_level + 1)])
+    ax.set_xticks(range(len(data['state']) + 1))
+    tick_labels = [str(i) for i in range(len(data['state']) + 1)]
+    ax.set_xticklabels(tick_labels, rotation=45)
+    ax.grid(True)
+
     legend_elements = [plt.Line2D([0], [0], color=state_colors[state], lw=4, label=state) for state in unique_states]
     ax.legend(handles=legend_elements, loc='upper right')
 
     # Show the plot
-    plt.show()
+    plot_buffer = BytesIO()
+    plt.savefig(plot_buffer, format='png')
+    plot_buffer.seek(0) 
+    image = Image.open(plot_buffer)
+    plt.close()
+    return image
 
 def getProcessData(process_stack: Stack) -> dict:
     """

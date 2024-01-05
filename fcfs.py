@@ -8,10 +8,10 @@ class FCFS:
         self.process_stack = process_stack
         self.queue = Queue()
         self.details = {"state": [], "level":[]}
-
-    def run(self):
-        self.time_step = 0 
-        while not ( self.process_stack.isEmpty() and self.queue.isEmpty() ):
+        self.time_step = 0
+    
+    def step(self):   
+        if not ( self.process_stack.isEmpty() and self.queue.isEmpty() ):
         
             # Get arrived process
             arrived_processes = getArrivedProcesses(self.process_stack, self.time_step)
@@ -32,6 +32,12 @@ class FCFS:
                 self.details["level"].append(0)
             
             self.time_step += 1
+            return True
+        return False
+
+    def run(self):
+        while self.step():
+            continue
         return self.details
 
 if __name__ == "__main__":

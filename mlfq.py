@@ -40,6 +40,7 @@ class MLFQ:
         self.prev_level = 0
         self.pre_emptive = pre_emptive
         self.previous_process = None
+        self.details = {"state": [], "level":[]}
         self.info = {'CurrentRunningProcess': '', 'CurrentLevel': '', 'finished': [], 'finish_time': []}
     
     def boost(self) -> None:
@@ -124,14 +125,14 @@ class MLFQ:
             else:
                 return False
         self.time_step += 1
+        self.details["state"].append(self.info["CurrentRunningProcess"])
+        self.details["level"].append(self.info["CurrentLevel"])
         return True
 
     def run(self):
-        df = {"state":[], "level":[]}
         while(self.step()):
-            df["state"].append(self.info["CurrentRunningProcess"])
-            df["level"].append(self.info["CurrentLevel"])
-        return df
+            continue
+        return self.details
     
 # Debug    
 if __name__ == "__main__":

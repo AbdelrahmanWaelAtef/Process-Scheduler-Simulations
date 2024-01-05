@@ -10,11 +10,11 @@ class RoundRobin():
         self.queue = Queue()
         self.quantum = quantum
         self.waiting_processes = []
-
-    def run(self):
         self.time_step = 0
-        details = {"state": [], "level": []}
-        while not (self.process_stack.isEmpty() and self.queue.isEmpty() and not self.waiting_processes):
+        self.details = {"state": [], "level": []}
+    
+    def step(self):
+        if not (self.process_stack.isEmpty() and self.queue.isEmpty() and not self.waiting_processes):
 
             # Get arrived process
             arrived_processes = getArrivedProcesses(self.process_stack, self.time_step)
@@ -30,8 +30,8 @@ class RoundRobin():
             current_process = self.queue.peak()
             if current_process:
                 current_process.decrementDuration()
-                details["state"].append(current_process.name)
-                details["level"].append(0)
+                self.details["state"].append(current_process.name)
+                self.details["level"].append(0)
                 if current_process.duration:
                     if current_process.quantum:
                         self.queue.changePeakProcess(current_process)
@@ -41,10 +41,16 @@ class RoundRobin():
                 else:
                     self.queue.pop()
             else:
-                details["state"].append("idle")
-                details["level"].append(0)
+                self.details["state"].append("idle")
+                self.details["level"].append(0)
             self.time_step += 1
-        return details
+            return True
+        return False
+
+    def run(self):
+        while(self.step()):
+            continue
+        return self.details
 
 if __name__ == "__main__":
     stack = Stack()
