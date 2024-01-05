@@ -29,10 +29,13 @@ class Process:
 
     pid_counter = 0
 
-    def __init__(self, arrival_time: int, duration: int, tickets: int = None, depends_on = None) -> None:
+    def __init__(self, arrival_time: int, duration: int, tickets: int = None, depends_on = None, name = None) -> None:
         Process.pid_counter += 1
         self.pid = Process.pid_counter
-        self.name = f"P{self.pid}"
+        if name:
+            self.name = name
+        else:
+            self.name = f"P{self.pid}"
         self.arrival_time = arrival_time
         self.duration = duration
         self.state = ProcessState.EMBRYO

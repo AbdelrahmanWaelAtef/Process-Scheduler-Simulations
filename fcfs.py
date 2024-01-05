@@ -4,7 +4,12 @@ from stack import Stack
 from process import Process
 
 class FCFS:
+
+    counter = 0
+
     def __init__(self, process_stack):
+        FCFS.counter += 1
+        self.name = f"FCFS: {FCFS.counter}"
         self.process_stack = process_stack
         self.queue = Queue()
         self.details = {"state": [], "level":[]}

@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 from io import BytesIO
+random.seed(10)
 
 def initializeProcessStack(num_processes: int = 8, min_arrival_time: int = 0, max_arrival_time: int = 30, min_duration:int = 3, max_duration: int = 15, max_tickets: int = None, depends_on_probability: float = None) -> Stack:
     """
@@ -65,6 +66,7 @@ def getArrivedProcesses(stack: Stack, time_step:int) -> list:
     processes = []
     while not stack.isEmpty() and stack.peak().arrival_time == time_step:
         processes.append(stack.pop())
+
     return processes
 
 def generate_color(process_name: str) -> tuple:
@@ -144,7 +146,7 @@ def plotGanttChart(data: dict) -> None:
 
     legend_elements = [plt.Line2D([0], [0], color=state_colors[state], lw=4, label=state) for state in unique_states]
     ax.legend(handles=legend_elements, loc='upper right')
-    plt.close()
+    plt.show()
 
 def saveGanttChart(data:dict, ax, canvas):
     """
@@ -263,6 +265,48 @@ def calculateMetrics(data: list, processes_details:dict) -> dict:
         details[process] = [processes_details[process][0], first_idx, last_idx + 1, processes_details[process][1], waiting_time, response_time, turnaround_time]
 
     return details
+
+def calculatePerformance(data: dict):
+    waiting_time = 0
+    response_time = 0
+    count = 0
+    for key in data:
+        count += 1
+        waiting_time += data[key][-3]
+        response_time += data[key][-2]
+    return waiting_time/count, response_time/count
+
+def savePerformancePlot(names, average_waiting_times, average_response_times, ax, canvas):
+    X_axis = np.arange(len(names)) 
+    
+    bars1 = ax.bar(X_axis - 0.2, average_waiting_times, 0.4, label='Average Waiting Time')
+    bars2 = ax.bar(X_axis + 0.2, average_response_times, 0.4, label='Average Response Time')
+    
+    # Adding the text on top of the bars
+    for bar in bars1:
+        height = bar.get_height()
+        ax.annotate(f'{height:.2f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),  # 3 points vertical offset
+                    textcoords="offset points",
+                    ha='center', va='bottom')
+
+    for bar in bars2:
+        height = bar.get_height()
+        ax.annotate(f'{height:.2f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),  # 3 points vertical offset
+                    textcoords="offset points",
+                    ha='center', va='bottom')
+
+    ax.set_xticks(X_axis, names) 
+    ax.set_xlabel("Schedules") 
+    ax.set_ylabel("Time") 
+    ax.set_title("Performance of Each Scheduler Running on 100 Random Processes") 
+    ax.legend() 
+    canvas.draw()
+    plt.close()
+
         
 # Debug
 if __name__ == "__main__":

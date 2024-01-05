@@ -5,7 +5,10 @@ from utils import *
 from priority_queue import *
 
 class SRTF():
+    counter = 0
     def __init__(self, process_stack):
+        SRTF.counter += 1
+        self.name = f"SRTF: {SRTF.counter}"
         self.process_stack = process_stack
         self.queue = PriorityQueue()
         self.waiting_processes = []
@@ -13,7 +16,7 @@ class SRTF():
         self.details = {"state": [], "level": []}
 
     def step(self):
-        if not (self.process_stack.isEmpty() and self.queue.isEmpty()):
+        if not (self.process_stack.isEmpty() and self.queue.isEmpty() and not self.waiting_processes):
 
             # Get arrived process
             arrived_processes = getArrivedProcesses(self.process_stack, self.time_step)
@@ -47,6 +50,6 @@ if __name__ == "__main__":
     stack.push(Process(12, 1))
     stack.sort()
     arrival_times = getProcessData(stack)
-    strf = STRF(stack)  
-    df = strf.run()
+    srtf = SRTF(stack)  
+    df = srtf.run()
     plotGanttChart(df)

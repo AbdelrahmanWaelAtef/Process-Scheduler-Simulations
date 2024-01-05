@@ -19,6 +19,7 @@ class MLFQ:
         prev_level (int): Previous level from which a process was running.
         info (dict): Information about the current and finished processes, and other relevant data.
     """
+    counter = 0
     def __init__(self, process_stack: Stack, structure: list = [Queue(), Queue(), Queue()],
                  quanta: list = [2, 5, 100000], boost_time: int = 10000, pre_emptive: bool = True) -> None:
         """
@@ -30,6 +31,8 @@ class MLFQ:
             quanta (list): A list of quanta of each level
             boost_time (int): Time interval for boosting process priority.
         """
+        MLFQ.counter += 1
+        self.name = f"MLFQ: {MLFQ.counter}"
         self.process_stack = process_stack
         self.structure = structure
         self.num_levels = len(structure)

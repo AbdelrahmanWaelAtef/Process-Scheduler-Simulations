@@ -33,6 +33,7 @@ class SchedulerApp(tk.Tk):
         container.pack(side="top", fill="both", expand=True)
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
+        self.iconbitmap('schedule.ico')
 
         # Initialize a dictionary to hold the frames
         self.frames = {}
@@ -49,6 +50,7 @@ class SchedulerApp(tk.Tk):
         self.past_details = []
         self.finished = False
         self.results = None
+        self.schedulers = []
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -59,13 +61,14 @@ class SchedulerApp(tk.Tk):
                   CustomProcessCreationFrameTickets, FinalFrame, REStartFrame,
                   RELotteryFrame, REMLFQConfigFrame, REMLFQFrame, RERoundRobinFrame,
                   RECustomProcessCreationFrame, REProcessConfigFrame, ModifyProcessFrame,
-                  RemoveProcesses):
+                  RemoveProcesses, InitialFrame, SCMLFQConfigFrame, SCMLFQFrame, SCRoundRobinFrame,
+                  SCStartFrame, SCFinalFrame):
             frame = F(container, self)
             self.frames[F] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
         # Display the initial frame
-        self.showFrame(StartFrame)
+        self.showFrame(InitialFrame)
 
     def showFrame(self, cont) -> None:
         """Show a specified frame in the application.
@@ -82,20 +85,22 @@ class SchedulerApp(tk.Tk):
             self.geometry("400x230")  # Set a custom size that fits the contents of this frame
         elif cont == LotteryFrame:
             self.geometry("400x250")
-        elif cont == RoundRobinFrame or cont == RERoundRobinFrame:
+        elif cont == RoundRobinFrame or cont == RERoundRobinFrame or cont == SCRoundRobinFrame:
             self.geometry("400x150")
-        elif cont == MLFQFrame or cont == REMLFQFrame:
+        elif cont == MLFQFrame or cont == REMLFQFrame or cont == SCMLFQFrame:
             self.geometry("400x320")
-        elif cont == MLFQConfigFrame or cont == REMLFQConfigFrame:
+        elif cont == MLFQConfigFrame or cont == REMLFQConfigFrame or cont ==SCMLFQConfigFrame:
             self.geometry("800x200")
         elif cont == CustomProcessCreationFrame or cont == RECustomProcessCreationFrame:
             self.geometry("500x200")
         elif cont == CustomProcessCreationFrameTickets:
             self.geometry("820x200")
-        elif cont == FinalFrame:
+        elif cont == FinalFrame or cont == SCFinalFrame:
             self.geometry(f"1620x800")
         elif cont == ModifyProcessFrame:
             self.geometry("400x100")
+        elif cont == SCStartFrame:
+            self.geometry("400x200")
         elif cont == RemoveProcesses:
             self.geometry(f"400x{200+ 25*len(self.frames[RemoveProcesses].names)}")
         else:
@@ -203,7 +208,45 @@ class SchedulerApp(tk.Tk):
             return True
         self.finished = True
         return False
-                
+    
+    def computePerformance(self):
+        self.scheduler_names = []
+        self.average_waiting_times = []
+        self.average_response_times = []
+        for scheduler in self.schedulers:
+            self.scheduler_names.append(scheduler.name)
+            details = scheduler.run()
+            results = calculateMetrics(details["state"], self.process_data)
+            average_waiting_time, average_response_time = calculatePerformance(results)
+            self.average_waiting_times.append(average_waiting_time)
+            self.average_response_times.append(average_response_time)
+    
+class InitialFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+
+        label = tk.Label(self, text="Choose what do you want to do")
+        label.pack(pady=10, padx=10)
+        
+        statistical_comparison_button = ttk.Button(self, text="Statistical Comparison",
+                                    command=lambda: self.goToStatsFrame(controller))
+        statistical_comparison_button.pack(pady=10, padx=10)
+        
+        simulation_button = ttk.Button(self, text="Simulation",
+                                    command=lambda: self.goToSimFrame(controller))
+        simulation_button.pack(pady=10, padx=10)
+
+    def goToStatsFrame(self, controller) -> None:
+        stack = Stack()
+        stack.push(Process(0, 10, name="P1"))
+        stack.push(Process(1, 10, name="P2"))
+        stack.sort()
+        controller.processes = customProcessStack()
+        controller.process_data = getProcessData(controller.processes)
+        controller.showFrame(SCStartFrame)
+
+    def goToSimFrame(self, controller) -> None:
+        controller.showFrame(StartFrame)
 
 class StartFrame(tk.Frame):
     """Class for the StartFrame.
@@ -715,6 +758,9 @@ class FinalFrame(tk.Frame):
     
     def modify(self):
         self.controller.showFrame(ModifyProcessFrame)
+    
+    def goBack(self):
+        self.controller.showFrame(InitialFrame)
 
     def displayFrame(self):
         # self.controller.past_details.append(image)
@@ -765,6 +811,9 @@ class FinalFrame(tk.Frame):
 
         button6 = ttk.Button(self.frame2, text="Metrics", command=self.metrics)
         button6.pack(pady=10)
+
+        button7 = ttk.Button(self.frame2, text="Return", command=self.goBack)
+        button7.pack(pady=10)
         pass
 
 class ModifyProcessFrame(tk.Frame):
@@ -1184,6 +1233,364 @@ class RemoveProcesses(tk.Frame):
         self.controller.showFrame(FinalFrame)
         self.controller.scheduler.process_stack.items = self.process_stack
         self.controller.scheduler.process_stack.sort()
+
+class SCStartFrame(tk.Frame):
+    """Class for the StartFrame.
+
+    This class represents a frame in the scheduler application, specifically for startframe.
+    """
+    def __init__(self, parent, controller) -> None:
+        """Initialize the StartFrame frame.
+
+        Sets up the UI elements and functionality specific to the startframe.
+        """
+        tk.Frame.__init__(self, parent)
+        label = tk.Label(self, text="Choose the scheduling algorithm")
+        label.pack(pady=10, padx=10)
+
+        # Dropdown menu for scheduling algorithms
+        self.algorithm = tk.StringVar()
+        self.algorithm.set("FCFS") # default value
+        dropdown = ttk.Combobox(self, textvariable=self.algorithm, 
+                                values=["FCFS", "SJF", "SRTF", "Round-Robin", "MLFQ"])
+        dropdown.pack(pady=10, padx=10)
+
+        # Button to proceed to the corresponding frame
+        add_button = ttk.Button(self, text="Add",
+                                    command=lambda: self.goToFrame(controller))
+        add_button.pack(pady=10, padx=10)
+
+        # Button to proceed to the corresponding frame
+        proceed_button = ttk.Button(self, text="Proceed",
+                                    command=lambda: self.proceed(controller))
+        proceed_button.pack(pady=10, padx=10)
+
+    def goToFrame(self, controller) -> None:
+            selection = self.algorithm.get()
+            if selection == "FCFS":
+                stack = customProcessStack()
+                controller.schedulers.append(FCFS(stack))
+                controller.showFrame(SCStartFrame)
+            elif selection == "SJF":
+                stack = customProcessStack()
+                controller.schedulers.append(SJF(stack))
+                controller.showFrame(SCStartFrame)
+            elif selection == "SRTF":
+                stack = customProcessStack()
+                stack.items = controller.processes.items.copy()
+                controller.schedulers.append(SRTF(stack))
+                controller.showFrame(SCStartFrame)
+            elif selection == "Round-Robin":
+                controller.showFrame(SCRoundRobinFrame)
+            elif selection == "MLFQ":
+                controller.showFrame(SCMLFQFrame)
+                messagebox.showinfo("MLFQ", "If you do not want boosting, do not put a value in the boost time box")
+    
+    def proceed(self, controller):
+        controller.computePerformance()
+        controller.frames[SCFinalFrame].displayFrame()
+        controller.showFrame(SCFinalFrame)
+
+class SCRoundRobinFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+
+        quanta_label = tk.Label(self, text="Quantum size")
+        quanta_label.pack(pady=10, padx=10)
+
+        self.quantum = tk.Entry(self)
+        self.quantum.pack(pady=10, padx=10)
+
+        proceed_button = ttk.Button(self, text="Proceed",
+                                    command=self.proceed)
+        proceed_button.pack(pady=10, padx=10)
+
+    def proceed(self) -> None:
+        try:
+            stack = customProcessStack()
+            self.controller.schedulers.append(RoundRobin(stack, int(self.quantum.get())))
+            self.controller.showFrame(SCStartFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+class SCMLFQFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+
+        label = tk.Label(self, text="Choose Pre-emption")
+        label.pack(pady=10, padx=10)
+
+        self.preemption = tk.StringVar()
+        self.preemption.set("Pre-emptive")  # default value
+        self.dropdown = ttk.Combobox(self, textvariable=self.preemption,
+                                values=["Pre-emptive", "Non-pre-emptive"])
+        self.dropdown.pack(pady=10, padx=10)
+
+        levels_label = tk.Label(self, text="Number of levels")
+        levels_label.pack(pady=10, padx=10)
+                        
+        self.num_levels_entry = tk.Entry(self)
+        self.num_levels_entry.pack(pady=10, padx=10)
+
+        boost_label = tk.Label(self, text="Boost time")
+        boost_label.pack(pady=10, padx=10)
+
+        self.boost_entry = tk.Entry(self)
+        self.boost_entry.pack(pady=10, padx=10)
+
+        proceed_button = ttk.Button(self, text="Proceed",
+                                    command=self.proceed)
+        proceed_button.pack(pady=10, padx=10)
+
+    def proceed(self) -> None:
+        try:
+            if (self.boost_entry.get()):
+                boost_time = int(self.boost_entry.get())
+            else:
+                boost_time = 1000000
+            self.boost_time =  boost_time
+            self.pre_emptive = self.dropdown.get() == "pre-emptive"
+            self.controller.frames[SCMLFQConfigFrame].num_levels = int(self.num_levels_entry.get())
+            self.controller.frames[SCMLFQConfigFrame].createLevelFrames()
+            self.controller.showFrame(SCMLFQConfigFrame)
+            messagebox.showinfo("MLFQ", "If you choose FCFS, you do not need to put the quantum size")
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+class SCMLFQConfigFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.current_level = 0  # New attribute to track the current level
+        self.currentLevelIndex = 0
+        self.level_frames = []
+        self.levels = []
+        self.quanta = []
+
+        # Button to show the next process
+        self.next_level_button = ttk.Button(self, text="Next Process", command=self.showNextLevel)
+
+        # Button to proceed after all processes are entered
+        self.proceed_button = ttk.Button(self, text="Proceed",
+                                    command=self.proceed)
+
+    def showNextLevel(self) -> None:
+        try:
+            if self.level_frames[self.currentLevelIndex][1].get() == "Round-Robin":
+                self.levels.append(Queue())
+                self.quanta.append(int(self.level_frames[self.currentLevelIndex][2].get()))
+            else:
+                self.levels.append(Queue())
+                self.quanta.append(100000)
+            # Hide the current process frame
+            self.level_frames[self.currentLevelIndex][0].pack_forget()
+            self.next_level_button.pack_forget()
+            # Move to the next process
+            self.currentLevelIndex = (self.currentLevelIndex + 1)
+
+            # Show the next process frame
+            self.level_frames[self.currentLevelIndex][0].pack(fill="both", expand=True, padx=10, pady=5)
+            if self.currentLevelIndex == self.num_levels - 1:
+                self.next_level_button.pack_forget()
+                self.proceed_button.pack(pady=10)
+            else:
+                self.next_level_button.pack(pady=10)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+    def createLevelFrames(self) -> None:
+        for level in range(self.num_levels):
+            level_frame = tk.LabelFrame(self, text=f"Level {level + 1} Configuration")
+            level_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+            type_label = tk.Label(level_frame, text="Choose Type:")
+            type_label.pack(side="left", padx=5)
+
+            type_var = tk.StringVar()
+            type_var.set("Round-robin")  # default value
+            type_dropdown = ttk.Combobox(level_frame, textvariable=type_var,
+                                         values=["Round-Robin", "FCFS"])
+            type_dropdown.pack(side="left", padx=5)
+
+            quanta_label = tk.Label(level_frame, text="Quanta size:")
+            quanta_label.pack(side="left", padx=5)
+
+            quanta_entry = tk.Entry(level_frame)
+            quanta_entry.pack(side="left", padx=5)
+
+            self.level_frames.append((level_frame, type_dropdown, quanta_entry))
+            level_frame.pack_forget()  # Initially hide all frames
+        # Show the first level
+        self.level_frames[0][0].pack(fill="both", expand=True, padx=10, pady=5)
+        self.next_level_button.pack(pady=10)
+
+    def proceed(self) -> None:
+        try:
+            if self.level_frames[self.currentLevelIndex][1].get() == "Round-Robin":
+                self.levels.append(Queue())
+                self.quanta.append(int(self.level_frames[self.currentLevelIndex][2].get()))
+            else:
+                self.levels.append(Queue())
+                self.quanta.append(100000)
+            stack = customProcessStack()
+            self.controller.schedulers.append(MLFQ(stack,
+                                                quanta=self.quanta, structure=self.levels,
+                                                pre_emptive=self.controller.frames[SCMLFQFrame].pre_emptive,
+                                                boost_time=self.controller.frames[SCMLFQFrame].boost_time))
+            self.controller.showFrame(SCStartFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+class SCFinalFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+
+    def back(self):
+        pass
+
+    def displayFrame(self):
+        # self.controller.past_details.append(image)
+        self.frame_ratio = [8, 1]
+        # self.photo = ImageTk.PhotoImage(image)
+
+        # Create Frame 1 which will have a photo (using a label as a placeholder here)
+        self.frame1 = ttk.Frame(self, borderwidth=2, relief="solid")
+        self.frame1.pack(side="left", fill="both", expand=True)
+
+        # Create a label as a placeholder for the photo in Frame 1
+        # self.photo_label = ttk.Label(self.frame1, image=self.photo)
+        # self.photo_label.pack(fill="both", expand=True)
+        # self.photo_label.image = self.photo
+        self.fig, self.ax = plt.subplots(figsize=(15, 8))
+        self.canvas = FigureCanvasTkAgg(self.fig, 
+                                master = self.frame1)   
+        savePerformancePlot(self.controller.scheduler_names, self.controller.average_waiting_times, self.controller.average_response_times, self.ax, self.canvas)
+        self.canvas.draw() 
+        self.canvas.get_tk_widget().pack() 
+
+        # Create Frame 2 which will have some buttons
+        self.frame2 = ttk.Frame(self, borderwidth=2, relief="solid")
+        self.frame2.pack(side="right", fill="both", expand=False)
+
+        # Set the width of Frame 2 to be 1/8 of Frame 1
+        self.controller.update()  # Force update to calculate sizes
+        self.frame1_width = self.controller.winfo_width() * self.frame_ratio[0] / sum(self.frame_ratio)
+        self.frame2_width = self.controller.winfo_width() * self.frame_ratio[1] / sum(self.frame_ratio)
+        self.frame1.config(width=self.frame1_width)
+        self.frame2.config(width=self.frame2_width)
+
+        # Create some buttons in Frame 2
+        button1 = ttk.Button(self.frame2, text="Return", command=self.back)
+        button1.pack(pady=10)
+        pass
+
+def customProcessStack():
+    stack = Stack()
+    stack.push(Process(1, 14, name='P0'))
+    stack.push(Process(48, 21, name='P1'))
+    stack.push(Process(18, 14, name='P2'))
+    stack.push(Process(16, 17, name='P3'))
+    stack.push(Process(42, 1, name='P4'))
+    stack.push(Process(47, 8, name='P5'))
+    stack.push(Process(11, 13, name='P6'))
+    stack.push(Process(8, 6, name='P7'))
+    stack.push(Process(18, 3, name='P8'))
+    stack.push(Process(35, 2, name='P9'))
+    stack.push(Process(29, 4, name='P10'))
+    stack.push(Process(0, 15, name='P11'))
+    stack.push(Process(48, 12, name='P12'))
+    stack.push(Process(4, 6, name='P13'))
+    stack.push(Process(26, 17, name='P14'))
+    stack.push(Process(23, 21, name='P15'))
+    stack.push(Process(51, 3, name='P16'))
+    stack.push(Process(38, 8, name='P17'))
+    stack.push(Process(0, 20, name='P18'))
+    stack.push(Process(28, 8, name='P19'))
+    stack.push(Process(14, 18, name='P20'))
+    stack.push(Process(7, 14, name='P21'))
+    stack.push(Process(31, 14, name='P22'))
+    stack.push(Process(18, 21, name='P23'))
+    stack.push(Process(48, 19, name='P24'))
+    stack.push(Process(16, 10, name='P25'))
+    stack.push(Process(30, 14, name='P26'))
+    stack.push(Process(27, 21, name='P27'))
+    stack.push(Process(50, 13, name='P28'))
+    stack.push(Process(36, 3, name='P29'))
+    stack.push(Process(10, 21, name='P30'))
+    stack.push(Process(25, 13, name='P31'))
+    stack.push(Process(7, 14, name='P32'))
+    stack.push(Process(11, 11, name='P33'))
+    stack.push(Process(9, 20, name='P34'))
+    stack.push(Process(40, 8, name='P35'))
+    stack.push(Process(9, 11, name='P36'))
+    stack.push(Process(20, 18, name='P37'))
+    stack.push(Process(8, 4, name='P38'))
+    stack.push(Process(14, 2, name='P39'))
+    stack.push(Process(33, 20, name='P40'))
+    stack.push(Process(0, 19, name='P41'))
+    stack.push(Process(30, 13, name='P42'))
+    stack.push(Process(35, 19, name='P43'))
+    stack.push(Process(11, 10, name='P44'))
+    stack.push(Process(49, 17, name='P45'))
+    stack.push(Process(0, 11, name='P46'))
+    stack.push(Process(15, 17, name='P47'))
+    stack.push(Process(1, 11, name='P48'))
+    stack.push(Process(1, 13, name='P49'))
+    stack.push(Process(30, 15, name='P50'))
+    stack.push(Process(38, 12, name='P51'))
+    stack.push(Process(48, 17, name='P52'))
+    stack.push(Process(26, 4, name='P53'))
+    stack.push(Process(33, 20, name='P54'))
+    stack.push(Process(40, 2, name='P55'))
+    stack.push(Process(48, 18, name='P56'))
+    stack.push(Process(19, 3, name='P57'))
+    stack.push(Process(38, 14, name='P58'))
+    stack.push(Process(0, 15, name='P59'))
+    stack.push(Process(48, 3, name='P60'))
+    stack.push(Process(14, 18, name='P61'))
+    stack.push(Process(15, 19, name='P62'))
+    stack.push(Process(39, 8, name='P63'))
+    stack.push(Process(45, 12, name='P64'))
+    stack.push(Process(11, 6, name='P65'))
+    stack.push(Process(34, 20, name='P66'))
+    stack.push(Process(39, 2, name='P67'))
+    stack.push(Process(14, 9, name='P68'))
+    stack.push(Process(38, 17, name='P69'))
+    stack.push(Process(44, 13, name='P70'))
+    stack.push(Process(0, 10, name='P71'))
+    stack.push(Process(1, 9, name='P72'))
+    stack.push(Process(31, 15, name='P73'))
+    stack.push(Process(37, 3, name='P74'))
+    stack.push(Process(11, 4, name='P75'))
+    stack.push(Process(39, 12, name='P76'))
+    stack.push(Process(12, 13, name='P77'))
+    stack.push(Process(13, 2, name='P78'))
+    stack.push(Process(8, 7, name='P79'))
+    stack.push(Process(27, 13, name='P80'))
+    stack.push(Process(27, 9, name='P81'))
+    stack.push(Process(21, 21, name='P82'))
+    stack.push(Process(47, 18, name='P83'))
+    stack.push(Process(15, 17, name='P84'))
+    stack.push(Process(42, 7, name='P85'))
+    stack.push(Process(17, 12, name='P86'))
+    stack.push(Process(27, 3, name='P87'))
+    stack.push(Process(23, 10, name='P88'))
+    stack.push(Process(21, 12, name='P89'))
+    stack.push(Process(3, 17, name='P90'))
+    stack.push(Process(51, 6, name='P91'))
+    stack.push(Process(10, 2, name='P92'))
+    stack.push(Process(18, 1, name='P93'))
+    stack.push(Process(48, 15, name='P94'))
+    stack.push(Process(33, 7, name='P95'))
+    stack.push(Process(50, 3, name='P96'))
+    stack.push(Process(13, 15, name='P97'))
+    stack.push(Process(32, 3, name='P98'))
+    stack.push(Process(7, 1, name='P99'))
+    stack.sort()
+    return stack
 
 app = SchedulerApp()
 app.mainloop()
