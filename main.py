@@ -47,6 +47,8 @@ class SchedulerApp(tk.Tk):
         self.process_data = None
         self.prev_details = {'state': [], 'level': []}
         self.past_details = []
+        self.finished = False
+        self.results = None
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -55,7 +57,9 @@ class SchedulerApp(tk.Tk):
                   MLFQFrame, MLFQConfigFrame, LotteryFrame,
                   CustomProcessConfigFrame, CustomProcessCreationFrame,
                   CustomProcessCreationFrameTickets, FinalFrame, REStartFrame,
-                  RELotteryFrame, REMLFQConfigFrame, REMLFQFrame, RERoundRobinFrame):
+                  RELotteryFrame, REMLFQConfigFrame, REMLFQFrame, RERoundRobinFrame,
+                  RECustomProcessCreationFrame, REProcessConfigFrame, ModifyProcessFrame,
+                  RemoveProcesses):
             frame = F(container, self)
             self.frames[F] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -74,7 +78,7 @@ class SchedulerApp(tk.Tk):
         frame.tkraise()
 
         # Special handling for EncodeDecodeSelection frame
-        if cont == CustomProcessConfigFrame or cont == ProcessConfigFrame:
+        if cont == CustomProcessConfigFrame or cont == ProcessConfigFrame or cont == REProcessConfigFrame:
             self.geometry("400x230")  # Set a custom size that fits the contents of this frame
         elif cont == LotteryFrame:
             self.geometry("400x250")
@@ -84,35 +88,44 @@ class SchedulerApp(tk.Tk):
             self.geometry("400x320")
         elif cont == MLFQConfigFrame or cont == REMLFQConfigFrame:
             self.geometry("800x200")
-        elif cont == CustomProcessCreationFrame:
+        elif cont == CustomProcessCreationFrame or cont == RECustomProcessCreationFrame:
             self.geometry("500x200")
         elif cont == CustomProcessCreationFrameTickets:
             self.geometry("820x200")
         elif cont == FinalFrame:
             self.geometry(f"1620x800")
+        elif cont == ModifyProcessFrame:
+            self.geometry("400x100")
+        elif cont == RemoveProcesses:
+            self.geometry(f"400x{200+ 25*len(self.frames[RemoveProcesses].names)}")
         else:
             self.geometry("400x150") # Resize window to fit the frame
 
     def setupScheduler(self):
-            self.total_duration = 0
-            for process in self.processes.items:
-                self.total_duration += process.duration
-            self.details = {"state":['idle']*self.total_duration, "level":[0]*self.total_duration}
-            self.past_details.append(self.details)
-            if self.scheduler_name == "MLFQ":
-                self.scheduler = MLFQ(process_stack=self.processes,
-                                        boost_time=self.configurations["boost_time"],
-                                        pre_emptive=self.configurations["pre-emptive"],
-                                        quanta=self.configurations["quanta"],
-                                        structure=self.configurations["structure"])
-            if self.scheduler_name == "SJF":
-                self.scheduler = SJF(process_stack=self.processes)
-            if self.scheduler_name == "FCFS":
-                self.scheduler = FCFS(process_stack=self.processes)
-            if self.scheduler_name == "SRTF":
-                self.scheduler = SRTF(process_stack=self.processes)
-            if self.scheduler_name == "Round-Robin":
-                self.scheduler = RoundRobin(process_stack=self.processes, quantum=self.configurations["quantum"])
+        self.total_duration = 0
+        self.process_data = getProcessData(self.processes)
+        for process in self.processes.items:
+            self.total_duration += process.duration
+        self.details = {"state":['idle']*self.total_duration, "level":[0]*self.total_duration}
+        self.past_details.append(self.details)
+        if self.scheduler_name == "MLFQ":
+            self.scheduler = MLFQ(process_stack=self.processes,
+                                    boost_time=self.configurations["boost_time"],
+                                    pre_emptive=self.configurations["pre-emptive"],
+                                    quanta=self.configurations["quanta"],
+                                    structure=self.configurations["structure"])
+        if self.scheduler_name == "SJF":
+            self.scheduler = SJF(process_stack=self.processes)
+        if self.scheduler_name == "FCFS":
+            self.scheduler = FCFS(process_stack=self.processes)
+        if self.scheduler_name == "SRTF":
+            self.scheduler = SRTF(process_stack=self.processes)
+        if self.scheduler_name == "Round-Robin":
+            self.scheduler = RoundRobin(process_stack=self.processes, quantum=self.configurations["quantum"])
+
+    def calculateAllMetrics(self):
+        self.results = calculateMetrics(self.details["state"], self.process_data)
+        return
 
     def reSetupScheduler(self):
         if self.scheduler_name == "MLFQ":
@@ -181,41 +194,16 @@ class SchedulerApp(tk.Tk):
                 self.details['state'][self.time_step] = self.scheduler.details['state'][self.time_step]
                 self.details['level'][self.time_step] = self.scheduler.details['level'][self.time_step]
             self.processes = self.scheduler.process_stack
-            self.past_details.append(self.details)
+            details = {'state': [], 'level': []}
+            for i in range(len(self.details['state'])):
+                details['state'].append(self.details['state'][i])
+                details['level'].append(self.details['level'][i])
+            self.past_details.append(details)
+            self.finished = False
             return True
+        self.finished = True
         return False
-
-    def runSchedule(self):
-        if self.scheduler_name == "MLFQ":
-            self.scheduler = MLFQ(process_stack=self.processes,
-                                    boost_time=self.configurations["boost_time"],
-                                    pre_emptive=self.configurations["pre-emptive"],
-                                    quanta=self.configurations["quanta"],
-                                    structure=self.configurations["structure"])
-            self.process_data = getProcessData(self.processes)
-            self.details = self.scheduler.run()
-            self.results = calculateMetrics(self.details["state"], self.process_data)
- 
-        if self.scheduler_name == "SJF":
-                    self.scheduler = SJF(process_stack=self.processes)
-                    self.process_data = getProcessData(self.processes)
-                    self.details = self.scheduler.run()
-                    self.results = calculateMetrics(self.details["state"], self.process_data)
-        if self.scheduler_name == "FCFS":
-                    self.scheduler = FCFS(process_stack=self.processes)
-                    self.process_data = getProcessData(self.processes)
-                    self.details = self.scheduler.run()
-                    self.results = calculateMetrics(self.details["state"], self.process_data)
-        if self.scheduler_name == "SRTF":
-                    self.scheduler = SRTF(process_stack=self.processes)
-                    self.process_data = getProcessData(self.processes)
-                    self.details = self.scheduler.run()
-                    self.results = calculateMetrics(self.details["state"], self.process_data)
-        if self.scheduler_name == "Round-Robin":
-            self.scheduler = RoundRobin(process_stack=self.processes, quantum=self.configurations["quantum"])
-            self.process_data = getProcessData(self.processes)
-            self.details = self.scheduler.run()
-            self.results = calculateMetrics(self.details["state"], self.process_data)                
+                
 
 class StartFrame(tk.Frame):
     """Class for the StartFrame.
@@ -692,6 +680,9 @@ class FinalFrame(tk.Frame):
             saveGanttChart(self.controller.past_details[self.counter], self.ax, self.canvas)
 
     def changeSchedule(self):
+        if self.controller.finished:
+            messagebox.showinfo('Simulation', 'Simulation has finished')
+            return
         if self.controller.scheduler_name == 'MLFQ':
             for structure in self.controller.scheduler.structure:
                 while(structure.peak()):
@@ -703,6 +694,24 @@ class FinalFrame(tk.Frame):
             self.controller.waiting_processes = self.controller.scheduler.waiting_processes
         self.controller.prev_details = self.controller.scheduler.details
         self.controller.showFrame(REStartFrame)
+
+    def run(self):
+        while self.controller.step():
+            continue
+        self.counter = len(self.controller.past_details) - 1
+        saveGanttChart(self.controller.past_details[self.counter], self.ax, self.canvas)
+
+    def metrics(self):
+        if not self.controller.finished:
+            messagebox.showinfo('Simulation', 'Simulation has not finished')
+            return
+        if not self.controller.results:
+            self.controller.calculateAllMetrics()
+        for process in self.controller.results:
+            messagebox.showinfo(process, f"Arrival time: {self.controller.results[process][0]}\nFirst turn in: {self.controller.results[process][1]}\nFinish time: {self.controller.results[process][2]}\nBurst time: {self.controller.results[process][3]}\nWaiting time: {self.controller.results[process][4]}\nResponse time: {self.controller.results[process][5]}\nTurnaround time: {self.controller.results[process][6]}")
+    
+    def modify(self):
+        self.controller.showFrame(ModifyProcessFrame)
 
     def displayFrame(self):
         # self.controller.past_details.append(image)
@@ -745,9 +754,34 @@ class FinalFrame(tk.Frame):
         button3 = ttk.Button(self.frame2, text="Change Schedule", command=self.changeSchedule)
         button3.pack(pady=10)
 
-        button4 = ttk.Button(self.frame2, text="Button 3")
+        button4 = ttk.Button(self.frame2, text="Run", command=self.run)
         button4.pack(pady=10)
+
+        button5 = ttk.Button(self.frame2, text="Modify Process", command=self.modify)
+        button5.pack(pady=10)
+
+        button6 = ttk.Button(self.frame2, text="Metrics", command=self.metrics)
+        button6.pack(pady=10)
         pass
+
+class ModifyProcessFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        
+        add_button = ttk.Button(self, text="Add",
+                                    command=lambda: self.goToAddFrame(controller))
+        add_button.pack(pady=10, padx=10)
+        
+        remove_button = ttk.Button(self, text="Remove",
+                                    command=lambda: self.goToRemoveFrame(controller))
+        remove_button.pack(pady=10, padx=10)
+
+    def goToAddFrame(self, controller) -> None:
+        controller.showFrame(REProcessConfigFrame)
+
+    def goToRemoveFrame(self, controller) -> None:
+        controller.frames[RemoveProcesses].start()
+        controller.showFrame(RemoveProcesses)
 
 class REStartFrame(tk.Frame):
     """Class for the StartFrame.
@@ -975,11 +1009,175 @@ class REMLFQConfigFrame(tk.Frame):
                 self.quanta.append(100000)
             self.controller.configurations["quanta"] = self.quanta
             self.controller.configurations["structure"] = self.levels
-            self.controller.process_data = getProcessData(self.controller.processes)
             self.controller.showFrame(FinalFrame)
             self.controller.reSetupScheduler()
         except:
             messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+class REProcessConfigFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.num_processes = 30
+
+        label = tk.Label(self, text="Number of processes")
+        label.pack(pady=10, padx=10)
+
+        self.num_processes_entry = tk.Entry(self)
+        self.num_processes_entry.pack(pady=10, padx=10)
+
+        process_creation_label = tk.Label(self, text="Process Creation")
+        process_creation_label.pack(pady=10, padx=10)
+
+        self.process_creation = tk.StringVar()
+        self.process_creation.set("Random")  # default value
+        self.process_creation_dropdown = ttk.Combobox(self, textvariable=self.process_creation,
+                                                 values=["Custom", "Random"])
+        self.process_creation_dropdown.pack(pady=10, padx=10)
+
+        self.proceed_button = ttk.Button(self, text="Proceed",
+                                    command=self.proceed)
+        self.proceed_button.pack(pady=10, padx=10)
+
+    def proceed(self) -> None:
+        try:
+            if self.process_creation_dropdown.get() == "Custom":
+                self.controller.frames[RECustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
+                self.controller.frames[RECustomProcessCreationFrame].createProcessFrames()
+                self.controller.showFrame(RECustomProcessCreationFrame)
+            else:
+                processes = initializeProcessStack(min_arrival_time=self.controller.time_step + 1, max_arrival_time=self.controller.time_step + 30, num_processes=int(self.num_processes_entry.get()))
+                for process in processes.items:
+                    self.controller.scheduler.process_stack.items.append(process)
+                self.controller.scheduler.process_stack.sort()
+                details = getProcessData(processes)
+                for data in details:
+                    self.controller.process_data[data] = details[data]
+                self.controller.showFrame(FinalFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+
+class RECustomProcessCreationFrame(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.num_processes = self.controller.frames[ProcessConfigFrame].num_processes
+        self.current_process_index = 0
+        self.process_frames = []
+        self.next_process_button = ttk.Button(self, text="Next Process", command=self.showNextProcess)
+        self.proceed_button = ttk.Button(self, text="Proceed",
+                                    command=self.proceed)
+        self.processes = Stack()
+
+    def createProcessFrames(self) -> None:
+        for process_num in range(self.num_processes):
+            process_frame = tk.LabelFrame(self, text=f"Process #{process_num + 1}")
+            process_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+            arrival_label = tk.Label(process_frame, text="Arrival time:")
+            arrival_label.pack(side="left", padx=5)
+            arrival_entry = tk.Entry(process_frame)
+            arrival_entry.pack(side="left", padx=5)
+
+            burst_label = tk.Label(process_frame, text="Burst time:")
+            burst_label.pack(side="left", padx=5)
+            burst_entry = tk.Entry(process_frame)
+            burst_entry.pack(side="left", padx=5)
+
+            self.process_frames.append((process_frame, arrival_entry, burst_entry))
+            process_frame.pack_forget()  # Initially hide the frame
+
+            # Show only the first process frame initially
+        self.process_frames[0][0].pack(fill="both", expand=True, padx=10, pady=5)
+        self.next_process_button.pack(pady=10)
+
+    def showNextProcess(self) -> None:
+        try:
+            # Hide the current process frame
+            self.process_frames[self.current_process_index][0].pack_forget()
+            self.next_process_button.pack_forget()
+            arrival_time =  int(self.process_frames[self.current_process_index][1].get())
+            if arrival_time < self.controller.time_step:
+                messagebox.showerror("Incorrect Input", f"Arrival time should be more than or equal {self.controller.time_step}")
+                return
+            process = Process(arrival_time=arrival_time,
+                                                    duration=int(self.process_frames[self.current_process_index][2].get()))
+            self.controller.scheduler.process_stack.push(process)
+            self.processes.push(process)
+            # Move to the next process
+            self.current_process_index = (self.current_process_index + 1)
+
+            # Show the next process frame
+            self.process_frames[self.current_process_index][0].pack(fill="both", expand=True, padx=10, pady=5)
+            if self.current_process_index == self.num_processes - 1:
+                self.next_process_button.pack_forget()
+                self.proceed_button.pack(pady=10)
+            else:
+                self.next_process_button.pack(pady=10)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+    def proceed(self) -> None:
+        try:
+            process = Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
+                                        duration=int(self.process_frames[self.current_process_index][2].get()))
+            self.controller.scheduler.process_stack.push(process)
+            self.processes.push(process)
+            self.controller.scheduler.process_stack.sort()
+            details = getProcessData(self.processes)
+            for data in details:
+                self.controller.process_data[data] = details[data]
+            self.controller.showFrame(FinalFrame)
+        except:
+            messagebox.showerror("Incorrect Input", "Please enter valid inputs")
+
+class RemoveProcesses(tk.Frame):
+    def __init__(self, parent, controller) -> None:
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.names = []
+
+    def start(self):
+        self.process_stack = self.controller.scheduler.process_stack.items
+        for process in self.process_stack:
+            self.names.append(process.name)
+        self.selected_name = tk.StringVar()
+        self.build_radio_buttons()
+
+    def build_radio_buttons(self):
+        # Clear existing radio buttons
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        # Create labels and radio buttons for each name
+        for name in self.names:
+            # Create a radio button for the name
+            radio_button = ttk.Radiobutton(self, text=name, variable=self.selected_name, value=name)
+            radio_button.pack(pady=10)
+        
+        remove_button = ttk.Button(self, text="Remove Selected Name", command=self.remove_name)
+        remove_button.pack(pady=10)
+        
+        proceed_button = ttk.Button(self, text="Proceed", command=self.proceed)
+        proceed_button.pack(pady=10)
+
+    def remove_name(self):
+        # Remove the selected name from the list and rebuild radio buttons
+        try:
+            self.names.remove(self.selected_name.get())
+            for i in range(len(self.process_stack)):
+                if self.process_stack[i].name == self.selected_name.get():
+                    del self.process_stack[i]
+                    break
+            self.build_radio_buttons()
+        except ValueError:
+            messagebox.showerror("Error", "No more proceses left")
+    
+    def proceed(self):
+        self.controller.showFrame(FinalFrame)
+        self.controller.scheduler.process_stack.items = self.process_stack
+        self.controller.scheduler.process_stack.sort()
 
 app = SchedulerApp()
 app.mainloop()

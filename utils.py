@@ -8,7 +8,7 @@ from PIL import Image
 import pandas as pd
 from io import BytesIO
 
-def initializeProcessStack(num_processes: int = 8, max_arrival_time: int = 30, min_duration:int = 3, max_duration: int = 15, max_tickets: int = None, depends_on_probability: float = None) -> Stack:
+def initializeProcessStack(num_processes: int = 8, min_arrival_time: int = 0, max_arrival_time: int = 30, min_duration:int = 3, max_duration: int = 15, max_tickets: int = None, depends_on_probability: float = None) -> Stack:
     """
     Initializes a stack of processes with random attributes.
 
@@ -32,7 +32,7 @@ def initializeProcessStack(num_processes: int = 8, max_arrival_time: int = 30, m
     """
     stack = Stack()
     for _ in range(num_processes):
-        rand_arrival_time = random.randint(0, max_arrival_time + 1)
+        rand_arrival_time = random.randint(min_arrival_time, max_arrival_time + 1)
         rand_duration = random.randint(min_duration, max_duration + 1)
         if max_tickets:
             rand_ticket = random.randint(1, max_tickets + 1)
