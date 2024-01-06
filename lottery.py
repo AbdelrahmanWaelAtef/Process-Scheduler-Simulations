@@ -11,10 +11,12 @@ class Lottery:
         self.process_stack = process_stack
         self.queue = Queue()
         self.quantum = quantum
+        self.pre_emptive = pre_emptive
         self.waiting_processes = []
         self.time_step = 0
         self.details = {"state": [], "level": []}
-        self.pre_emptive = pre_emptive
+        self.pick_next = None
+        # print(self.pre_emptive)
 
     def step(self):
         if not (self.process_stack.isEmpty() and self.queue.isEmpty() and not self.waiting_processes):
@@ -29,37 +31,69 @@ class Lottery:
                 process.quantum = self.quantum
                 self.queue.push(process)
             self.waiting_processes = []
-
+            
+            
             current_max_tickets = sum(process.tickets for process in self.queue.items)
+            
             if current_max_tickets > 0:
-                # Generate a random number between 0 and the current total tickets in the queue
+                # determine winning ticket
                 random_ticket = randint(0, current_max_tickets - 1)
-                print(f"Winning ticket: {random_ticket},\t current max tickets: {current_max_tickets}")
                 chosen_process = None
                 ticket_sum = 0
-
                 for process in self.queue.items:
                     ticket_sum += process.tickets
                     if ticket_sum > random_ticket:
                         chosen_process = process
                         break
 
-                if chosen_process:
-                    chosen_process.decrementDuration()
-                    self.details["state"].append(chosen_process.name)
-                    self.details["level"].append(0)
-                    if chosen_process.duration:
-                        if chosen_process.quantum:
-                            # Update the queue if process still needs quantum
-                            self.queue.changePeakProcess(chosen_process)
+                if self.pre_emptive:
+                    # Preemptive behavior
+                    # print('pre')
+                    if chosen_process:
+                        chosen_process = self.pick_next if self.pick_next != None else chosen_process 
+                        chosen_process.decrementDuration()
+                        self.details["state"].append(chosen_process.name)
+                        self.details["level"].append(0)
+                        if chosen_process.duration:
+                            if chosen_process.quantum:
+                                self.pick_next = chosen_process
+                                # self.queue.changePeakProcess(chosen_process)
+                                pass
+                            else:
+                                self.pick_next = None
+                                self.queue.remove(chosen_process)
+                                self.waiting_processes.append(chosen_process)
                         else:
                             self.queue.remove(chosen_process)
-                            self.waiting_processes.append(chosen_process)
                     else:
-                        self.queue.remove(chosen_process)
+                        self.details["state"].append("idle")
+                        self.details["level"].append(0)
+
                 else:
-                    self.details["state"].append("idle")
-                    self.details["level"].append(0)
+                    # Non-preemptive behavior
+                    # print('non-pre')
+                    if chosen_process:
+                        current_process = chosen_process
+                        if current_process:
+                            current_process = self.pick_next if self.pick_next != None else chosen_process 
+                            current_process.decrementDuration()
+                            self.details["state"].append(current_process.name)
+                            self.details["level"].append(0)
+                            if current_process.duration:
+                                self.pick_next = current_process
+                                # self.queue.changePeakProcess(current_process)
+                                # process.quantum = 2 # workaround for crashing, non-preemptive behavior ignores quantum value
+                                pass
+                            else:
+                                self.pick_next = None
+                                self.queue.remove(current_process)
+                        else:
+                            self.details["state"].append("idle")
+                            self.details["level"].append(0)
+                    else:
+                        self.details["state"].append("idle")
+                        self.details["level"].append(0)
+
             else:
                 self.details["state"].append("idle")
                 self.details["level"].append(0)
@@ -72,5 +106,4 @@ class Lottery:
     def run(self):
         while self.step():
             continue
-        print(self.details)
         return self.details
