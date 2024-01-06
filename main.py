@@ -10,9 +10,11 @@ from sjf import SJF
 from fcfs import FCFS
 from srtf import SRTF
 from rr import RoundRobin
+from lottery import Lottery
 from matplotlib.figure import Figure 
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,  
 NavigationToolbar2Tk) 
+import traceback
 
 class SchedulerApp(tk.Tk):
     """ Main application class for the scheduler simulation.
@@ -127,6 +129,9 @@ class SchedulerApp(tk.Tk):
             self.scheduler = SRTF(process_stack=self.processes)
         if self.scheduler_name == "Round-Robin":
             self.scheduler = RoundRobin(process_stack=self.processes, quantum=self.configurations["quantum"])
+        if self.scheduler_name == "Lottery":
+            self.scheduler = Lottery(process_stack=self.processes, quantum=self.configurations["quantum"], pre_emptive=self.configurations["pre-emptive"])
+
 
     def calculateAllMetrics(self):
         self.results = calculateMetrics(self.details["state"], self.process_data)
@@ -169,6 +174,13 @@ class SchedulerApp(tk.Tk):
             self.scheduler = RoundRobin(process_stack=self.processes, quantum=self.configurations["quantum"])
             while self.queue.peak():
                 self.scheduler.queue.push(self.queue.pop()) 
+            for process in self.waiting_processes:
+                self.scheduler.queue.push(process)
+            self.scheduler.details = self.prev_details
+        if self.scheduler_name == "Lottery":
+            self.scheduler = Lottery(process_stack=self.processes, quantum=self.configurations["quantum"], pre_emptive=self.configurations["pre-emptive"])
+            while self.queue.peak():
+                self.scheduler.queue.push(self.queue.pop())
             for process in self.waiting_processes:
                 self.scheduler.queue.push(process)
             self.scheduler.details = self.prev_details
@@ -397,7 +409,7 @@ class MLFQFrame(tk.Frame):
             else:
                 boost_time = 1000000
             self.controller.configurations["boost_time"] = boost_time
-            self.controller.configurations["pre-emptive"] = self.dropdown.get() == "pre-emptive"
+            self.controller.configurations["pre-emptive"] = self.dropdown.get() == "Pre-emptive"
             self.controller.frames[MLFQConfigFrame].num_levels = int(self.num_levels_entry.get())
             self.controller.frames[MLFQConfigFrame].createLevelFrames()
             self.controller.showFrame(MLFQConfigFrame)
@@ -415,9 +427,9 @@ class LotteryFrame(tk.Frame):
 
         self.preemption = tk.StringVar()
         self.preemption.set("Pre-emptive")  # default value
-        dropdown = ttk.Combobox(self, textvariable=self.preemption,
+        self.dropdown = ttk.Combobox(self, textvariable=self.preemption,
                                 values=["Pre-emptive", "Non-pre-emptive"])
-        dropdown.pack(pady=10, padx=10)
+        self.dropdown.pack(pady=10, padx=10)
 
         quanta_label = tk.Label(self, text="Quanta size")
         quanta_label.pack(pady=10, padx=10)
@@ -430,6 +442,8 @@ class LotteryFrame(tk.Frame):
         proceed_button.pack(pady=10, padx=10)
 
     def proceed(self) -> None:
+        self.controller.configurations["quantum"] = int(self.quantum.get())
+        self.controller.configurations["pre-emptive"] = self.dropdown.get() == "Pre-emptive"
         self.controller.showFrame(CustomProcessConfigFrame)
 
 
@@ -542,14 +556,15 @@ class CustomProcessConfigFrame(tk.Frame):
     def proceed(self) -> None:
         try:
             if self.process_creation_dropdown.get() == "Custom":
-                self.controller.frames[CustomProcessCreationFrame].num_processes = int(self.num_processes_entry.get())
-                self.controller.frames[CustomProcessCreationFrame].createProcessFrames()
-                self.controller.showFrame(CustomProcessCreationFrame)
+                self.controller.frames[CustomProcessCreationFrameTickets].num_processes = int(self.num_processes_entry.get())
+                self.controller.frames[CustomProcessCreationFrameTickets].createProcessFrames()
+                self.controller.showFrame(CustomProcessCreationFrameTickets)
             else:
                 self.controller.processes = initializeProcessStack(int(self.num_processes_entry.get()), max_tickets=100, depends_on_probability=0.01)
+                self.controller.setupScheduler()
                 self.controller.process_data = getProcessData(self.controller.processes)
                 self.controller.frames[FinalFrame].displayFrame()
-            self.controller.showFrame(FinalFrame)
+                self.controller.showFrame(FinalFrame)
         except:
             messagebox.showerror("Incorrect Input", "Please enter valid inputs")
 
@@ -627,6 +642,7 @@ class CustomProcessCreationFrameTickets(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
         self.process_frames = []
+        self.current_process_index = 0
         self.num_processes = 0
         self.next_process_button = ttk.Button(self, text="Next Process", command=self.showNextProcess)
         self.proceed_button = ttk.Button(self, text="Proceed",
@@ -652,13 +668,13 @@ class CustomProcessCreationFrameTickets(tk.Frame):
             tickets_entry = tk.Entry(process_frame)
             tickets_entry.pack(side="left", padx=5)
 
-            label = tk.Label(self, text="Depends on")
-            label.pack(pady=10, padx=10)
+            label = tk.Label(process_frame, text="Depends on")
+            label.pack(side="left", padx=5)
 
             depends_on_entry = tk.Entry(process_frame)
             depends_on_entry.pack(side="left", padx=5)
 
-            self.process_frames.append((process_frame, arrival_entry, burst_entry, tickets_entry, depends_on_entry))
+            self.process_frames.append((process_frame, arrival_entry, burst_entry, tickets_entry, depends_on_entry if depends_on_entry else None))
             process_frame.pack_forget()  # Initially hide the frame
 
             # Show only the first process frame initially
@@ -673,9 +689,8 @@ class CustomProcessCreationFrameTickets(tk.Frame):
 
             self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
                                             duration=int(self.process_frames[self.current_process_index][2].get()),
-                                            tickets=int(self.process_frames[self.current_process_index][3].get())),
-                                            depends_on=self.controller.processes.searchForProcess(self.process_frames[self.current_process_index][4].get()))
-
+                                            tickets=int(self.process_frames[self.current_process_index][3].get()),
+                                            depends_on=self.controller.processes.searchForProcess(self.process_frames[self.current_process_index][4].get()) if self.process_frames[self.current_process_index][4].get() != None else None))
             # Move to the next process
             self.current_process_index = (self.current_process_index + 1)
 
@@ -693,8 +708,9 @@ class CustomProcessCreationFrameTickets(tk.Frame):
         try:
             self.controller.processes.push(Process(arrival_time=int(self.process_frames[self.current_process_index][1].get()),
                                             duration=int(self.process_frames[self.current_process_index][2].get()),
-                                            tickets=int(self.process_frames[self.current_process_index][3].get())),
-                                            depends_on=self.controller.processes.searchForProcess(self.process_frames[self.current_process_index][4].get()))
+                                            tickets=int(self.process_frames[self.current_process_index][3].get()),
+                                            depends_on=self.controller.processes.searchForProcess(self.process_frames[self.current_process_index][4].get()) if self.process_frames[self.current_process_index][4].get() != None else None))
+            
             self.controller.processes.sort()
             self.controller.setupScheduler()
             self.controller.process_data = getProcessData(self.controller.processes)
